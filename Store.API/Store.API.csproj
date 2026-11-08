@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Store.Infrastructure\Store.Infrastructure.csproj" />
+    <ProjectReference Include="..\Store.Core\Store.Core.csproj" />
   </ItemGroup>
 
 </Project>

@@ -7,8 +7,10 @@ using System.Text;
 
 namespace Store.Infrastructure.Data.Config
 {
+    /// <summary>Configures the category schema and its initial seed records.</summary>
     public class CategoryConfigration : IEntityTypeConfiguration<Category>
     {
+        /// <summary>Defines category field constraints and seed data.</summary>
         public void Configure(EntityTypeBuilder<Category> builder)
         {
             builder.Property(category => category.Name).IsRequired().HasMaxLength(100);

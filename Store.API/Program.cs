@@ -3,9 +3,13 @@ using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using Store.API.Helper;
 using Store.API.MiddleWare;
+using Store.API.Services;
+using Store.Core.DTO;
+using Store.Core.Interfaces;
 
 Env.NoClobber().TraversePath().Load();
 
+// Configure application services before building the HTTP pipeline.
 var builder = WebApplication.CreateBuilder(args);
 
 if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("StoreDb")))
@@ -14,8 +18,7 @@ if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("StoreDb
         "Required configuration 'ConnectionStrings:StoreDb' is missing. Set the ConnectionStrings__StoreDb environment variable (for example in the repository-root .env file).");
 }
 
-// Add services to the container.
-
+// Convert MVC validation failures to the same response envelope used by middleware.
 builder.Services
     .AddControllers()
     .ConfigureApiBehaviorOptions(options =>
@@ -40,15 +43,16 @@ builder.Services
             return new BadRequestObjectResult(response);
         };
     });
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+// Expose the OpenAPI document and Swagger UI only in Development.
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 builder.Services.InfrastructureConfig(builder.Configuration);
 builder.Services.AddAutoMapper(_ => { }, AppDomain.CurrentDomain.GetAssemblies());
 
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Add development-only API documentation endpoints.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -58,17 +62,18 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// Handle exceptions and empty HTTP status responses with the shared API envelope.
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseStatusCodePages(async statusCodeContext =>
 {
     var context = statusCodeContext.HttpContext;
     await context.Response.WriteAsJsonAsync(
-        ApiResponses.FailureForStatusCode(context.Response.StatusCode, context.TraceIdentifier),
-        context.RequestAborted);
+        ApiResponses.FailureForStatusCode(context.Response.StatusCode, context.TraceIdentifier));
 });
 
 app.UseHttpsRedirection();
 
+// Register controller routes after the shared HTTP middleware.
 app.UseAuthorization();
 
 app.MapControllers();

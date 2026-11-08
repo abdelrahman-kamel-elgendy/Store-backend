@@ -1,18 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Linq.Expressions;
-using System.Text;
 
 namespace Store.Core.Interfaces
 {
+    /// <summary>Defines asynchronous persistence operations for an entity type.</summary>
+    /// <typeparam name="T">The entity type.</typeparam>
     public interface IGenericRepository<T> where T : class
     {
         Task<IReadOnlyList<T>> GetAllAsync();
         Task<IReadOnlyList<T>> GetAllAsync(params Expression<Func<T, object>>[] includes);
+        Task<IReadOnlyList<T>> GetPageAsync(int skip, int take);
         Task<T> GetByIdAsync(int entityId);
-        Task<T> GetByIdAsync(int entityId, params Expression<Func<T, object>>[] includes);
         Task AddAsync(T entity);
         Task UpdateAsync(T entity);
         Task DeleteAsync(int entityId);
+        Task<int> CountAsync();
     }
 }

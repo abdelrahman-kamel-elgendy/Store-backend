@@ -6,8 +6,10 @@ using System.Text;
 
 namespace Store.Infrastructure.Data.Config
 {
+    /// <summary>Configures the product schema and its initial seed records.</summary>
     public class ProductConfigration : IEntityTypeConfiguration<Product>
     {
+        /// <summary>Defines product field constraints and seed data.</summary>
         public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<Product> builder)
         {
             builder.Property(product => product.Id).IsRequired();

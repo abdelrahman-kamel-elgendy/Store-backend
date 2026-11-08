@@ -1,13 +1,12 @@
 namespace Store.API.Errors;
 
+/// <summary>Represents invalid request data with associated field errors.</summary>
 public sealed class ValidationException(string message, IReadOnlyDictionary<string, IEnumerable<string>> errors) : Exception(message)
 {
     public IReadOnlyDictionary<string, IEnumerable<string>> Errors { get; } = errors;
 }
 
 public sealed class BadRequestException(string message) : Exception(message);
-
-public sealed class NotFoundException(string message) : Exception(message);
 
 public sealed class UnauthorizedException(string message) : Exception(message);
 
