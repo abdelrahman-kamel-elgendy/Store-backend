@@ -2,9 +2,9 @@ using AutoMapper;
 using Store.Core.DTO.Category;
 using Store.Core.Entities.Product;
 
-public class MappingProfile : Profile
+public class CategoryMapper : Profile
 {
-    public MappingProfile()
+    public CategoryMapper()
     {
         CreateMap<Category, CategoryDto>();
         CreateMap<CreateCategoryRequest, Category>();
