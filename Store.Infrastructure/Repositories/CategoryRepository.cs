@@ -5,6 +5,6 @@ using Store.Infrastructure.Data;
 
 namespace Store.Infrastructure.Repositories;
 
-public class CategoryRepository(AppDbContext context) : GenericRepository<Category>(context), Core.Interfaces.ICategoryRepository
+public class CategoryRepository(AppDbContext context) : GenericRepository<Category>(context), ICategoryRepository
 {
 }
