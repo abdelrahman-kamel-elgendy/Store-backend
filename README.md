@@ -19,7 +19,6 @@ This README describes the implementation currently present in the repository. Se
 - [Database](#database)
 - [Authentication and security](#authentication-and-security)
 - [Errors and logging](#errors-and-logging)
-- [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
 - [Development guidelines](#development-guidelines)
 - [Deployment](#deployment)
@@ -41,14 +40,14 @@ This README describes the implementation currently present in the repository. Se
 
 ### Partially implemented
 
-- Category CRUD routes are available, but error handling has no stable error-response contract. Missing IDs and other errors are returned as `400 Bad Request`, and create/update/delete return only a success message rather than a resource representation.
+- Category CRUD routes return a shared `ApiResponse<T>` envelope with readable messages. Missing category IDs return `404 Not Found`; unexpected errors are handled by middleware.
 - Product and photo entities and repositories exist, but no HTTP endpoints expose them.
 - Base entities have `IsDeleted` and timestamp properties, but deletion is currently a physical delete and timestamps are not automatically maintained.
 - A local `.env.example` is provided, but no separate environment profiles, deployment templates, or secrets-management integration are configured.
 
 ### Not implemented
 
-There is no user or order model, registration/login flow, authentication, authorization policy, JWT handling, cart/checkout behavior, payment integration, image storage integration, pagination/filtering contract, health-check endpoint, or automated test project in the repository.
+There is no user or order model, registration/login flow, authentication, authorization policy, JWT handling, cart/checkout behavior, payment integration, image storage integration, pagination/filtering API contract, or health-check endpoint. Authentication and authorization are not configured, though the response middleware formats their status responses if added later.
 
 ## Technology stack
 
@@ -61,7 +60,7 @@ There is no user or order model, registration/login flow, authentication, author
 | Database | Microsoft SQL Server | Relational storage through `Microsoft.EntityFrameworkCore.SqlServer`. |
 | Environment configuration | `DotNetEnv` 3.2.0 | Loads environment values from a `.env` file during startup. |
 | Architecture | Three projects: API, Core, Infrastructure | Keeps HTTP concerns, entity/repository contracts, and persistence implementations separate. |
-| Tests / CI / deployment | None configured | No test project, CI workflow, container definition, or deployment template is present. |
+| CI / deployment | None configured | No CI workflow, container definition, or deployment template is present. |
 
 The API project references Infrastructure; Infrastructure references Core. Core does not reference the other application projects.
 
@@ -90,7 +89,7 @@ flowchart LR
 
 | Component | Responsibility |
 |---|---|
-| `Store.API` | Application entry point, configuration loading, controller registration, HTTP pipeline, OpenAPI/Swagger UI mapping, and the category route. |
+| `Store.API` | Application entry point, configuration loading, controller registration, standardized response and error handling, HTTP pipeline, OpenAPI/Swagger UI mapping, and category routes. |
 | `Store.Core` | Catalog entities and repository/unit-of-work interfaces. It contains no implemented business-service layer. |
 | `Store.Infrastructure` | SQL Server `DbContext`, EF entity configurations, repository implementations, and dependency-injection registration. |
 | `AppDbContext` | Exposes `Categories`, `Products`, and `Photos`; discovers entity configurations in the Infrastructure assembly. |
@@ -179,8 +178,14 @@ Store-backend/
 │   ├── Controllers/
 │   │   ├── BaseController.cs
 │   │   └── CategoriesController.cs
+│   ├── Errors/
+│   ├── Helper/
+│   │   └── ApiResponse.cs
+│   ├── MiddleWare/
+│   │   └── ExceptionHandlingMiddleware.cs
 │   ├── Properties/
 │   │   └── launchSettings.json
+│   ├── Mapping/
 │   ├── Program.cs
 │   ├── Store.API.csproj
 │   ├── Store.API.http
@@ -344,7 +349,6 @@ There are no `manage.ps1` or `manage.sh` scripts in this repository. Use the .NE
 | `dotnet restore Store.slnx` | Restore NuGet dependencies for all solution projects. |
 | `dotnet build Store.slnx` | Compile the solution. |
 | `dotnet run --project Store.API` | Run the API using the default launch profile. |
-| `dotnet test Store.slnx` | Ask the .NET test runner to run tests; no test project is currently included, so this does not provide application test coverage. |
 | `dotnet ef migrations add <Name> --project Store.Infrastructure --startup-project Store.API --output-dir Data/Migrations` | Create an EF Core migration. Ensure the output directory is not accidentally left ignored. |
 | `dotnet ef database update --project Store.Infrastructure --startup-project Store.API` | Apply available migrations using the API startup configuration and configured connection string. |
 | `dotnet publish Store.API/Store.API.csproj --configuration Release --output ./publish` | Produce a Release publish output for deployment. |
@@ -375,7 +379,7 @@ The application calls `UseHttpsRedirection`, but the checked-in launch settings 
 
 In Development, the OpenAPI JSON document is mapped at `/openapi/v1.json` and Swagger UI is served at `/swagger` (for example, `http://localhost:5189/swagger`). The UI reads the document from `/openapi/v1.json`. The `http` launch profile opens `swagger/index.html` in a browser automatically when you run the API from Visual Studio or with `dotnet run --project Store.API`. If it does not open automatically, navigate to `http://localhost:5189/swagger`. Both the UI and document are registered only in Development; they are not exposed by this setup in other environments. The application does not print a custom startup banner, expose a health endpoint, or configure a special shutdown procedure; stop the local process with Ctrl+C.
 
-`Store.API/Store.API.http` currently contains a request to `/weatherforecast/`, but there is no corresponding controller or minimal API route. It is a stale sample and is not a valid smoke test for this application.
+`Store.API/Store.API.http` currently contains a request to `/weatherforecast/`, but there is no corresponding controller or minimal API route. It is a stale sample; use the category request examples below instead.
 
 ## API
 
@@ -383,11 +387,11 @@ In Development, the OpenAPI JSON document is mapped at `/openapi/v1.json` and Sw
 
 | Method | Path | Purpose | Request body | Success response |
 |---|---|---|---|---|
-| `GET` | `/api/Categories` | Return all categories. | None | `200 OK` with the category collection. |
-| `GET` | `/api/Categories/id/{id}` | Return one category by ID. | None | `200 OK` with the category. |
-| `POST` | `/api/Categories` | Create a category. | `{"name":"Books","description":"Books and publications"}` | `200 OK` with a success message. |
-| `PUT` | `/api/Categories/update` | Update a category. | `{"id":1,"name":"Books","description":"Books and publications"}` | `200 OK` with a success message. |
-| `DELETE` | `/api/Categories/delete/{id}` | Delete a category. | None | `200 OK` with a success message. |
+| `GET` | `/api/Categories` | Return all categories. | None | `200 OK` with the collection in `data`. |
+| `GET` | `/api/Categories/id/{id}` | Return one category by ID. | None | `200 OK` with the category in `data`. |
+| `POST` | `/api/Categories` | Create a category. | `{"name":"Books","description":"Books and publications"}` | `201 Created` with the created category and a `Location` header. |
+| `PUT` | `/api/Categories/update` | Update a category. | `{"id":1,"name":"Books","description":"Books and publications"}` | `200 OK` with the updated category in `data`. |
+| `DELETE` | `/api/Categories/delete/{id}` | Delete a category. | None | `204 No Content`. |
 
 No authentication token is required or configured. The controller accepts `CategoryDTO` for create and `UpdateCategoryDTO` for update. There is no API versioning, pagination, sorting, filtering, or custom request-header contract.
 
@@ -424,7 +428,57 @@ Content-Type: application/json
 DELETE http://localhost:5189/api/Categories/delete/1
 ```
 
-The actions catch exceptions and return `400 Bad Request`; a category lookup that does not find an entity also returns `400 Bad Request`. Error payloads are not a stable API contract. Create, update, and delete persist through the repository and return a message, not a category resource or a `201 Created` response.
+All JSON success and error responses use the shared `ApiResponse<T>` format. Its fields are `success`, `message`, `data`, `errors`, and `meta`; unused fields are `null`. For example, an empty collection is still a successful response:
+
+```json
+{
+  "success": true,
+  "message": "No categories were found.",
+  "data": [],
+  "errors": null,
+  "meta": null
+}
+```
+
+Validation errors and known application errors use the same shape. Error items contain a `field` (null for non-field errors) and a readable `message`. Error `meta.traceId` lets operators correlate a response with server logs:
+
+```json
+{
+  "success": false,
+  "message": "Request validation failed.",
+  "data": null,
+  "errors": [
+    {
+      "field": "Name",
+      "message": "The Name field is required."
+    }
+  ],
+  "meta": {
+    "pagination": null,
+    "traceId": "00-..."
+  }
+}
+```
+
+Known category IDs that do not exist return `404 Not Found` with this envelope and a readable message. Unexpected errors are logged with their trace ID and return a generic `500` message; internal exception details are never included in the response. Authentication and authorization are not configured in this application; status-only `401`/`403` responses are formatted consistently if introduced by middleware later.
+
+Paginated endpoints can attach `meta.pagination` using `PaginationMetadata.Create(page, pageSize, totalItems)`. It reports page, page size, total item/page counts, and previous/next availability. The current category list is not paginated, so it does not include pagination metadata.
+
+The exception middleware maps known exceptions as follows; validation/model-binding failures are `400`, business-rule failures are `422`, and unexpected errors are `500`:
+
+| Exception or condition | HTTP status |
+|---|---:|
+| `ValidationException`, `BadRequestException`, invalid model state | 400 |
+| `NotFoundException` | 404 |
+| `UnauthorizedException` / status-only authentication challenge | 401 |
+| `ForbiddenException` / status-only authorization failure | 403 |
+| `ConflictException` | 409 |
+| `BusinessRuleException` | 422 |
+| `RateLimitException` | 429 |
+| `ServiceUnavailableException` | 503 |
+| Unexpected exception | 500 |
+
+Controller response metadata documents the success and expected error envelopes in the generated OpenAPI document. When adding an endpoint, return an `ApiResponse<T>` for JSON results, use the appropriate HTTP status, document its response types, and raise a known exception for errors instead of formatting error bodies locally.
 
 ## Database
 
@@ -466,19 +520,11 @@ The API does enable HTTPS redirection and relies on ASP.NET Core's built-in conf
 ## Errors and logging
 
 - Logging uses ASP.NET Core's standard logging configuration in `appsettings.json`: `Information` for the default category and `Warning` for `Microsoft.AspNetCore`.
-- There is no custom global exception handler, structured error schema, problem-details registration, correlation ID, health check, or monitoring integration.
-- `CategoriesController` catches exceptions and returns `400 Bad Request` with exception details or a message, depending on the action. This can misclassify server/database failures as client errors and should be replaced with a deliberate API error policy before client integrations depend on it.
-- The generic repository throws `ArgumentException` when a requested ID is not found; category lookup, update, and delete routes can expose these failures as `400 Bad Request`.
+- `ExceptionHandlingMiddleware` maps known exceptions to HTTP status codes, logs unexpected errors, and returns the shared `ApiResponse<T>` envelope with a trace ID. Internal exception details are never returned to clients.
+- Invalid model state and empty status-code responses use the same envelope. Errors use the application's response envelope rather than RFC 7807 Problem Details. There is no health check or monitoring integration.
+- The generic repository throws `ArgumentException` when a requested ID is not found; the category controller translates those cases into `404 Not Found`.
 
 For local diagnostics, check the application console output and confirm the SQL Server connection string points to a running instance. Avoid logging connection strings, credentials, or raw secrets.
-
-## Testing
-
-There is no test project, unit-test suite, integration-test suite, API test suite, mocking setup, or test-database configuration in the repository. `dotnet test Store.slnx` can be used as a discovery/check command, but it does not provide meaningful application coverage until test projects are added.
-
-The `.http` file is not currently an effective API test: it requests the unimplemented `/weatherforecast/` route. Use the category request examples in [API](#api) or update the `.http` file to exercise the implemented endpoints.
-
-When adding tests, consider unit tests for business behavior, repository tests against a controlled database/provider, and API-level tests for HTTP status and response contracts. These are recommendations, not existing project capabilities.
 
 ## Troubleshooting
 
@@ -492,7 +538,8 @@ When adding tests, consider unit tests for business behavior, repository tests a
 | Port is already in use | Another process is bound to port 5189 (or to a port configured for a custom HTTPS endpoint). | Stop the conflicting development process or change the launch profile's `applicationUrl`, then use the updated URL. |
 | HTTPS redirection does not work as expected | The checked-in launch profile configures only HTTP, without an HTTPS endpoint for local redirection. | Use the HTTP profile for local development or configure an HTTPS endpoint and follow Microsoft's [development certificate guidance](https://learn.microsoft.com/aspnet/core/security/enforcing-ssl) as appropriate. |
 | `/weatherforecast/` returns 404 | `Store.API.http` contains an outdated template request; no such endpoint exists. | Use one of the category routes listed in [API](#api) instead. |
-| A category request returns 400 | The ID may not exist, or the repository/database operation failed. | Check the ID, application logs, and SQL Server connectivity. The current controller maps lookup failures and exceptions to 400; the response is not a stable diagnostic contract. |
+| A category request returns 404 | The requested category ID does not exist. | Check the ID; the response includes a readable message in the API response envelope. |
+| A category request returns 500 | An unexpected error occurred, often from the database or another server-side operation. | Check application logs and SQL Server connectivity. The response includes a trace ID but never exposes internal exception details. |
 | PowerShell refuses to run a `.ps1` file | This repository does not include management scripts; if using a local script, execution policy may restrict it. | Do not expect `manage.ps1` to exist. For any separately supplied trusted script, follow your organization's PowerShell policy rather than weakening it globally. |
 | Bash reports permission denied for a script | No management shell script is included. | Use the `dotnet` commands in [Developer commands](#developer-commands). |
 | Build fails after restore | SDK mismatch, package restore issue, or a compile error in current source. | Run `dotnet --info`, `dotnet restore Store.slnx`, then `dotnet build Store.slnx` and inspect the first compiler/restore error. |
@@ -506,12 +553,11 @@ There is no formal contribution/style guide enforced by a formatter or analyzer 
 - Keep API input/output contracts explicit with request and response DTOs rather than exposing EF entities directly.
 - Return stable HTTP status codes and a consistent error format; do not return exception objects to clients.
 - Add and review an EF migration when changing the persisted model. Do not rely on local-only migration files.
-- Add tests for behavior and endpoint contracts when introducing features. There are currently no tests to establish a baseline.
 - Use clear C# type/member names and `PascalCase` for public types and members. Existing spelling/style inconsistencies (for example, `Configration` and `PhotoRepossitory`) are present; avoid expanding them, and rename only with appropriate reference updates.
 - Do not assume the current `IUnitOfWork` provides transaction coordination: the generic repository saves changes for each add/update/delete operation.
 - Keep secrets in local environment/deployment configuration and out of tracked files.
 
-No branch naming, commit-message, or pull-request policy is currently defined. As a suggested workflow, use a short descriptive feature/fix branch, make focused commits, explain behavior changes in the pull request, and include test results or explicitly state why tests are unavailable.
+No branch naming, commit-message, or pull-request policy is currently defined. As a suggested workflow, use a short descriptive feature/fix branch, make focused commits, and explain behavior changes and configuration/database impact in the pull request.
 
 ## Deployment
 
@@ -537,9 +583,9 @@ No confirmed project roadmap is present. The following are observations and poss
 
 ### Current limitations
 
-- Category CRUD routes exist, but their error responses are not standardized and create/update/delete do not return resource representations.
+- Category CRUD routes return `ApiResponse<T>` envelopes, but entities are still exposed directly and errors do not use RFC 7807 Problem Details.
 - Product/photo persistence abstractions exist but are not exposed through API endpoints.
-- No tests, authentication, authorization, input DTOs, stable error format, health checks, or deployment automation.
+- No authentication, authorization, pagination API, health checks, or deployment automation.
 - The initial migration is excluded from Git by the current ignore rule.
 - Base timestamps and soft-delete fields are not automatically applied; repository deletion is physical.
 
@@ -547,7 +593,6 @@ No confirmed project roadmap is present. The following are observations and poss
 
 - Make migration sources trackable, commit them, and document a repeatable database setup.
 - Add product/photo APIs with request validation, response DTOs, and consistent error handling; improve the category API's error and response contracts.
-- Add automated unit and integration tests and a working HTTP smoke-test example.
 - Decide and implement authentication/authorization requirements before exposing protected store operations.
 - Define soft-delete/timestamp behavior, database transaction boundaries, and operational health/logging requirements.
 - Add deployment automation only after selecting and documenting the intended hosting environment.
@@ -559,9 +604,8 @@ Contributions can be proposed through the repository's normal Git hosting workfl
 1. Fork or branch from the repository's normal development branch.
 2. Create a focused branch, for example `feature/category-api` or `fix/config-validation`.
 3. Implement a focused change using the project boundaries described above.
-4. Add or update tests when possible. Clearly call out when behavior cannot yet be tested because the repository has no test suite.
-5. Run `dotnet restore Store.slnx` and `dotnet build Store.slnx`; run `dotnet test Store.slnx` if test projects have been added.
-6. Include a concise description, rationale, configuration/database impact, and validation results in the pull request. Never include secrets.
+4. Run `dotnet restore Store.slnx` and `dotnet build Store.slnx`.
+5. Include a concise description, rationale, and configuration/database impact in the pull request. Never include secrets.
 
 ## License
 

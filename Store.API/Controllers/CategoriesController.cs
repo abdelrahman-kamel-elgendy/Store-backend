@@ -1,7 +1,7 @@
 using AutoMapper;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ActionConstraints;
+using Store.API.Errors;
+using Store.API.Helper;
 using Store.Core.DTO;
 using Store.Core.Entities.Product;
 using Store.Core.Interfaces;
@@ -10,87 +10,96 @@ namespace Store.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Produces("application/json")]
     public class CategoriesController(IUnitOfWork work, IMapper mapper) : BaseController(work, mapper)
     {
-        [HttpGet()]
-        public async Task<IActionResult> get()
+        [HttpGet]
+        [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<Category>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<ApiResponse<IReadOnlyList<Category>>>> Get()
         {
-            try
-            {
-                var categories = await _work.CategoryRepository.GetAllAsync();
-                if (categories is null)
-                    return BadRequest();
+            var categories = await _work.CategoryRepository.GetAllAsync();
 
-                return Ok(categories);
-            }
-            catch (Exception e)
-            {
-                return BadRequest(e);
-            }
+            return Ok(ApiResponses.Success(
+                categories,
+                categories.Count == 0 ? "No categories were found." : "Categories retrieved successfully."));
         }
 
-        [HttpGet("id/{id}")]
-        public async Task<IActionResult> getById(int id)
+        [HttpGet("id/{id}", Name = nameof(GetById))]
+        [ProducesResponseType(typeof(ApiResponse<Category>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<ApiResponse<Category>>> GetById(int id)
         {
-            try
-            {
-                var category = await _work.CategoryRepository.GetByIdAsync(id);
-                if (category is null)
-                    return BadRequest();
+            var category = await GetCategoryOrThrow(id);
 
-                return Ok(category);
-
-            }
-            catch (Exception e)
-            {
-                return BadRequest(e.Message);
-            }
+            return Ok(ApiResponses.Success(
+                category,
+                $"Category with ID {id} retrieved successfully."));
         }
 
-        [HttpPost()]
-        public async Task<IActionResult> add(CategoryDTO categoryDto)
+        [HttpPost]
+        [ProducesResponseType(typeof(ApiResponse<Category>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<ApiResponse<Category>>> Add([FromBody] CategoryDTO categoryDto)
         {
-            try
-            {
-                var category = _mapper.Map<Category>(categoryDto);
-                await _work.CategoryRepository.AddAsync(category);
+            var category = _mapper.Map<Category>(categoryDto);
+            await _work.CategoryRepository.AddAsync(category);
 
-                return Ok(new { Message = "Category has been added successfully" });
-            }
-            catch (Exception e)
-            {
-                return BadRequest(e.Message);
-            }
+            return CreatedAtRoute(
+                nameof(GetById),
+                new { id = category.Id },
+                ApiResponses.Success(
+                    category,
+                    "Category created successfully."));
         }
 
         [HttpPut("update")]
-        public async Task<IActionResult> update(UpdateCategoryDTO updateCategoryDto)
+        [ProducesResponseType(typeof(ApiResponse<Category>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<ApiResponse<Category>>> Update(UpdateCategoryDTO updateCategoryDto)
         {
-            try
-            {
-                var category = _mapper.Map<Category>(updateCategoryDto);
-                await _work.CategoryRepository.UpdateAsync(category);
+            await GetCategoryOrThrow(updateCategoryDto.Id);
+            var category = _mapper.Map<Category>(updateCategoryDto);
+            await _work.CategoryRepository.UpdateAsync(category);
 
-                return Ok(new { Message = "Category has been updated successfully" });
-            }
-            catch (Exception e)
-            {
-                return BadRequest(e.Message);
-            }
+            return Ok(ApiResponses.Success(
+                category,
+                "Category updated successfully."));
         }
 
         [HttpDelete("delete/{id}")]
-        public async Task<IActionResult> delete(int id)
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {
                 await _work.CategoryRepository.DeleteAsync(id);
-                return Ok(new { Message = "Category has been deleted successfully" });
             }
-            catch (Exception e)
+            catch (ArgumentException)
             {
+                throw new NotFoundException($"Category with ID {id} was not found.");
+            }
 
-                return BadRequest(e.Message);
+            return NoContent();
+        }
+
+        private async Task<Category> GetCategoryOrThrow(int id)
+        {
+            try
+            {
+                return await _work.CategoryRepository.GetByIdAsync(id);
+            }
+            catch (ArgumentException)
+            {
+                throw new NotFoundException($"Category with ID {id} was not found.");
             }
         }
     }
