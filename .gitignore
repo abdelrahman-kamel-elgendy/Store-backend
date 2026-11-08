@@ -1,0 +1,114 @@
+## .NET / Visual Studio .gitignore
+
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+
+# Visual Studio / VS Code / Rider
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.rsuser
+*.DotSettings.user
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# Test results & coverage
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+*.lcov
+coverage*.json
+coverage*.xml
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+project.lock.json
+.nuget/
+*.nuget.props
+*.nuget.targets
+
+# Publish output
+publish/
+PublishScripts/
+*.pubxml
+*.pubxml.user
+*.publishproj
+
+# Secrets & environment files (never commit these)
+.env
+.env.*
+!.env.example
+secrets.json
+*.pfx
+*.p12
+*.key
+appsettings.Local.json
+appsettings.*.Local.json
+
+# EF Core / local databases
+*.mdf
+*.ldf
+*.ndf
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+App_Data/
+
+# Logs & temp files
+*.log
+*.tmp
+*.temp
+*.bak
+*.cache
+*.tlog
+*.pdb
+*.ilk
+*.obj
+*.pch
+*.vspscc
+*_i.c
+*_p.c
+
+# Node (for projects with a frontend, e.g. Angular / NestJS)
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Docker
+docker-compose.override.yml

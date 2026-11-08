@@ -1,0 +1,24 @@
+﻿using Microsoft.EntityFrameworkCore;
+using Store.Core.Entities.Product;
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Text;
+
+namespace Store.Infrastructure.Data
+{
+    public class AppDbContext : DbContext
+    {
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+        public virtual DbSet<Category> Categories { get; set; }
+        public virtual DbSet<Product> Products { get; set; }
+        public virtual DbSet<Photo> Photos { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly()); // Apply all configurations from the current assembly
+        }
+    }
+}
