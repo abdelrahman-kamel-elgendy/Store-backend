@@ -1,11 +1,12 @@
-using Store.Infrastructure;
 using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using Store.API.Helper;
 using Store.API.MiddleWare;
-using Store.API.Services;
-using Store.Core.DTO;
 using Store.Core.Interfaces;
+using Store.Infrastructure.Repositories;
+using Store.API.Services;
+using Microsoft.EntityFrameworkCore;
+using Store.Infrastructure.Data;
 
 Env.NoClobber().TraversePath().Load();
 
@@ -13,10 +14,9 @@ Env.NoClobber().TraversePath().Load();
 var builder = WebApplication.CreateBuilder(args);
 
 if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("StoreDb")))
-{
     throw new InvalidOperationException(
-        "Required configuration 'ConnectionStrings:StoreDb' is missing. Set the ConnectionStrings__StoreDb environment variable (for example in the repository-root .env file).");
-}
+            "Required configuration 'ConnectionStrings:StoreDb' is missing. Set the ConnectionStrings__StoreDb environment variable (for example in the repository-root .env file).");
+
 
 // Convert MVC validation failures to the same response envelope used by middleware.
 builder.Services
@@ -30,9 +30,7 @@ builder.Services
                 .SelectMany(entry => entry.Value!.Errors.Select(error =>
                     new ApiError(
                         string.IsNullOrWhiteSpace(entry.Key) ? null : entry.Key,
-                        error.Exception is not null || string.IsNullOrWhiteSpace(error.ErrorMessage)
-                            ? "The supplied value is invalid."
-                            : error.ErrorMessage)))
+                        error.Exception is not null || string.IsNullOrWhiteSpace(error.ErrorMessage) ? "The supplied value is invalid." : error.ErrorMessage)))
                 .ToArray();
 
             var response = ApiResponses.Failure(
@@ -46,9 +44,18 @@ builder.Services
 // Expose the OpenAPI document and Swagger UI only in Development.
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
-builder.Services.InfrastructureConfig(builder.Configuration);
+
+// DB Context
+builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("StoreDb")));
+
+// Mapper
 builder.Services.AddAutoMapper(_ => { }, AppDomain.CurrentDomain.GetAssemblies());
 
+// Repositories
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+
+// Services 
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 var app = builder.Build();
 
