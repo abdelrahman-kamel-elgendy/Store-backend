@@ -14,7 +14,24 @@ namespace Store.Infrastructure.Data.Config
             builder.Property(product => product.Name).IsRequired().HasMaxLength(30);
             builder.Property(product => product.Price).IsRequired().HasColumnType("decimal(18,2)");
             builder.Property(product => product.Description).IsRequired().HasMaxLength(500);
-            builder.HasData(new Product { Id = 1, Name = "Test", Description = "Test Product", CategoryId = 1, Price = 12});
+
+            builder.HasData(
+                new Product
+                {
+                    Id = 1,
+                    Name = "Test",
+                    Description = "Test Product",
+                    CategoryId = 1,
+                    Price = 12
+                },
+                new Product
+                {
+                    Id = 2,
+                    Name = "Test_2",
+                    Description = "Test Product 2",
+                    CategoryId = 2,
+                    Price = 10
+                });
         }
     }
 }

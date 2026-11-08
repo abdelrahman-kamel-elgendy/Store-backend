@@ -11,9 +11,22 @@ namespace Store.Infrastructure.Data.Config
     {
         public void Configure(EntityTypeBuilder<Category> builder)
         {
-            builder.Property(category => category.Name).IsRequired().HasMaxLength(100); 
+            builder.Property(category => category.Name).IsRequired().HasMaxLength(100);
             builder.Property(category => category.Id).IsRequired().HasMaxLength(500);
-            builder.HasData(new Category { Id = 1, Name = "Test", Description = "Test Category"});
+
+            builder.HasData(
+                new Category
+                {
+                    Id = 1,
+                    Name = "Test",
+                    Description = "Test Category"
+                },
+                new Category
+                {
+                    Id = 2,
+                    Name = "Test_2",
+                    Description = "Test Category 2"
+                });
         }
     }
 }

@@ -63,6 +63,7 @@ PublishScripts/
 .env
 .env.*
 !.env.example
+*.local
 secrets.json
 *.pfx
 *.p12
@@ -80,6 +81,7 @@ appsettings.*.Local.json
 *.db-shm
 *.db-wal
 App_Data/
+Migrations/
 
 # Logs & temp files
 *.log
@@ -95,6 +97,15 @@ App_Data/
 *.vspscc
 *_i.c
 *_p.c
+
+# Editor temporary files and crash dumps
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+*.dmp
+*.stackdump
 
 # Node (for projects with a frontend, e.g. Angular / NestJS)
 node_modules/
