@@ -1,5 +1,6 @@
 using System;
 using AutoMapper;
+using Store.Core.DTO;
 using Store.Core.Entities.Product;
 using Store.Core.Interfaces;
 

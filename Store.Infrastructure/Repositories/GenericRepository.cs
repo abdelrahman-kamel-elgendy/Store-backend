@@ -10,6 +10,7 @@ namespace Store.Infrastructure.Repositories
     /// <typeparam name="T">The entity type tracked by this repository.</typeparam>
     public class GenericRepository<T>(AppDbContext context) : IGenericRepository<T> where T : class
     {
+        protected virtual string EntityName => typeof(T).Name; // gets the entity name used in not-found messages.
         private readonly AppDbContext _context = context;
 
         public async Task AddAsync(T entity)
@@ -46,7 +47,7 @@ namespace Store.Infrastructure.Repositories
 
         public async Task<int> CountAsync() => await _context.Set<T>().CountAsync();
 
-        public async Task<T> GetByIdAsync(int entityId) => await _context.Set<T>().FindAsync([entityId]) ?? throw new NotFoundException($"Entity with ID {entityId} was not found.");
+        public async Task<T> GetByIdAsync(int entityId) => await _context.Set<T>().FindAsync([entityId]) ?? throw new NotFoundException($"{EntityName} with ID {entityId} was not found.");
 
         public async Task UpdateAsync(T entity)
         {

@@ -1,5 +1,5 @@
 using System;
-using Store.Core.Entities.Product;
+using Store.Core.DTO;
 
 namespace Store.Core.Interfaces;
 

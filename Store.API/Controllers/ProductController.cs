@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Store.Core.DTO;
 using Store.Core.Interfaces;
 
 namespace Store.API.Controllers

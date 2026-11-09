@@ -10,6 +10,11 @@ public sealed class ExceptionHandlingMiddleware(
     RequestDelegate next,
     ILogger<ExceptionHandlingMiddleware> logger)
 {
+    /// <summary>Non-standard status code (used by nginx) for requests the client abandoned.</summary>
+    private const int ClientClosedRequest = 499;
+
+    private const string InternalErrorMessage = "An internal server error occurred. Please try again later.";
+
     /// <summary>Invokes the next middleware and formats exceptions raised by the request.</summary>
     public async Task InvokeAsync(HttpContext context)
     {
@@ -17,90 +22,93 @@ public sealed class ExceptionHandlingMiddleware(
         {
             await next(context);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
-            throw;
+            // The client disconnected, so there is nobody left to send a response to.
+            logger.LogDebug("Request was canceled by the client. TraceId: {TraceId}", GetTraceId(context));
+
+            if (!context.Response.HasStarted)
+                context.Response.StatusCode = ClientClosedRequest;
         }
         catch (Exception exception)
         {
+            var traceId = GetTraceId(context);
+
             if (context.Response.HasStarted)
             {
-                logger.LogError(exception, "An exception occurred after the response started. TraceId: {TraceId}", context.TraceIdentifier);
+                logger.LogError(
+                    exception,
+                    "An exception occurred after the response started. TraceId: {TraceId}",
+                    traceId);
                 throw;
             }
 
-            await HandleExceptionAsync(context, exception);
+            await HandleExceptionAsync(context, exception, traceId);
         }
     }
 
     /// <summary>Maps an exception to its status code, logs it, and writes the shared response.</summary>
-    private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private async Task HandleExceptionAsync(HttpContext context, Exception exception, string traceId)
     {
-        var (statusCode, message, errors) = exception switch
+        var result = MapException(exception);
+
+        if (result.StatusCode >= StatusCodes.Status500InternalServerError)
         {
-            ValidationException validationException => (
-                StatusCodes.Status400BadRequest,
-                validationException.Message,
-                validationException.Errors.SelectMany(error =>
-                    error.Value.Select(message => new ApiError(error.Key, message))).ToArray()),
-
-            BadRequestException badRequestException => (
-                StatusCodes.Status400BadRequest,
-                badRequestException.Message,
-                (IReadOnlyList<ApiError>?)null),
-
-            NotFoundException notFoundException => (
-                StatusCodes.Status404NotFound,
-                notFoundException.Message,
-                (IReadOnlyList<ApiError>?)null),
-
-            UnauthorizedException unauthorizedException => (
-                StatusCodes.Status401Unauthorized,
-                unauthorizedException.Message,
-                (IReadOnlyList<ApiError>?)null),
-
-            ForbiddenException forbiddenException => (
-                StatusCodes.Status403Forbidden,
-                forbiddenException.Message,
-                (IReadOnlyList<ApiError>?)null),
-
-            ConflictException conflictException => (
-                StatusCodes.Status409Conflict,
-                conflictException.Message,
-                (IReadOnlyList<ApiError>?)null),
-
-            BusinessRuleException businessRuleException => (
-                StatusCodes.Status422UnprocessableEntity,
-                businessRuleException.Message,
-                (IReadOnlyList<ApiError>?)null),
-
-            RateLimitException rateLimitException => (
-                StatusCodes.Status429TooManyRequests,
-                rateLimitException.Message,
-                (IReadOnlyList<ApiError>?)null),
-
-            ServiceUnavailableException serviceUnavailableException => (
-                StatusCodes.Status503ServiceUnavailable,
-                serviceUnavailableException.Message,
-                (IReadOnlyList<ApiError>?)null),
-            _ => (
-                StatusCodes.Status500InternalServerError,
-                "An internal server error occurred. Please try again later.",
-                (IReadOnlyList<ApiError>?)null)
-        };
-
-        if (statusCode >= StatusCodes.Status500InternalServerError)
-            logger.LogError(exception, "Unhandled exception processing request. TraceId: {TraceId}", context.TraceIdentifier);
-
+            logger.LogError(
+                exception,
+                "Unhandled exception processing request. Status: {StatusCode}. TraceId: {TraceId}",
+                result.StatusCode,
+                traceId);
+        }
         else
+        {
             logger.LogInformation(
                 "Request failed with status {StatusCode}: {Message}. TraceId: {TraceId}",
-                statusCode,
-                message,
-                context.TraceIdentifier);
+                result.StatusCode,
+                result.Message,
+                traceId);
+        }
 
-        context.Response.StatusCode = statusCode;
-        await context.Response.WriteAsJsonAsync(
-            ApiResponses.Failure(message, errors, Activity.Current?.Id ?? context.TraceIdentifier));
+        // The same status code goes in the HTTP response and in the JSON body.
+        var response = ApiResponses.Failure(result.Message, result.Errors, traceId, result.StatusCode);
+
+        context.Response.StatusCode = result.StatusCode;
+        await context.Response.WriteAsJsonAsync(response);
     }
+
+    /// <summary>
+    /// Maps an exception to an HTTP status code, a client-safe message and optional field errors.
+    /// More specific exception types must come before their base types.
+    /// </summary>
+    private static ErrorResult MapException(Exception exception) => exception switch
+    {
+        ValidationException e => new(
+            StatusCodes.Status400BadRequest,
+            e.Message,
+            e.Errors
+                .SelectMany(error => error.Value.Select(text => new ApiError(error.Key, text)))
+                .ToArray()),
+
+        BadRequestException e => new(StatusCodes.Status400BadRequest, e.Message),
+        NotFoundException e => new(StatusCodes.Status404NotFound, e.Message),
+        UnauthorizedException e => new(StatusCodes.Status401Unauthorized, e.Message),
+        ForbiddenException e => new(StatusCodes.Status403Forbidden, e.Message),
+        ConflictException e => new(StatusCodes.Status409Conflict, e.Message),
+        BusinessRuleException e => new(StatusCodes.Status422UnprocessableEntity, e.Message),
+        RateLimitException e => new(StatusCodes.Status429TooManyRequests, e.Message),
+        ServiceUnavailableException e => new(StatusCodes.Status503ServiceUnavailable, e.Message),
+
+        // Malformed request bodies, oversized payloads and similar errors raised by ASP.NET Core itself.
+        BadHttpRequestException e => new(e.StatusCode, "The request is invalid."),
+
+        // Never expose internal exception details to clients.
+        _ => new(StatusCodes.Status500InternalServerError, InternalErrorMessage)
+    };
+
+    /// <summary>Returns the identifier shared by the log entry and the response so they can be correlated.</summary>
+    private static string GetTraceId(HttpContext context) =>
+        Activity.Current?.Id ?? context.TraceIdentifier;
+
+    /// <summary>The status code, message and optional errors to return for an exception.</summary>
+    private sealed record ErrorResult(int StatusCode, string Message, IReadOnlyList<ApiError>? Errors = null);
 }
