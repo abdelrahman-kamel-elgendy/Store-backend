@@ -1,8 +1,9 @@
 using AutoMapper;
+using Store.API.Exceptions;
 using Store.Core.DTO;
 using Store.Core.Entities;
-using Store.Core.Exceptions;
-using Store.Core.Interfaces;
+using Store.Core.Interfaces.Repositories;
+using Store.Core.Interfaces.Servics;
 
 namespace Store.API.Services;
 
@@ -17,6 +18,14 @@ public class GenericService<TEntity, TResponse, TCreateRequest, TUpdateRequest>(
     where TEntity : BaseEntity<int>
 {
     protected virtual string EntityName => typeof(TEntity).Name; // gets the entity name used in not-found messages.
+
+    public virtual async Task<TResponse> CreateAsync(TCreateRequest request)
+    {
+        var entity = mapper.Map<TEntity>(request);
+        await repository.AddAsync(entity);
+
+        return mapper.Map<TResponse>(entity);
+    }
 
     public virtual async Task<PagedResult<TResponse>> GetAllAsync(int page, int pageSize)
     {
@@ -38,38 +47,34 @@ public class GenericService<TEntity, TResponse, TCreateRequest, TUpdateRequest>(
     public virtual async Task<TResponse> GetByIdAsync(int id)
     {
         var entity = await repository.GetByIdAsync(id) ?? throw new NotFoundException($"{EntityName} with ID {id} was not found.");
+
         return mapper.Map<TResponse>(entity);
-    }
-
-    public virtual async Task<TResponse> CreateAsync(TCreateRequest request)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        var entity = mapper.Map<TEntity>(request);
-        await repository.AddAsync(entity);
-
-        return mapper.Map<TResponse>(entity);  // map after saving so Id/CreatedAt are filled
     }
 
     public virtual async Task<TResponse> UpdateAsync(int id, TUpdateRequest request)
     {
         var entity = await repository.GetByIdAsync(id) ?? throw new NotFoundException($"{EntityName} with ID {id} was not found.");
+
         mapper.Map(request, entity);
-        entity.Id = id;
+
         await repository.UpdateAsync(entity);
+
         return mapper.Map<TResponse>(entity);
     }
 
     public virtual async Task DeleteAsync(int id)
     {
-        try
-        {
-            await repository.DeleteAsync(id);
-        }
-        catch (NotFoundException)
-        {
+        if (!await repository.ExistsByIdAsync(id))
             throw new NotFoundException($"{EntityName} with ID {id} was not found.");
-        }
+
+        await repository.DeleteAsync(id);
+    }
+
+    public virtual async Task<TResponse> RestoreAsync(int id)
+    {
+        var restoredEntity = await repository.RestoreAsync(id);
+
+        return mapper.Map<TResponse>(restoredEntity);
     }
 
 }

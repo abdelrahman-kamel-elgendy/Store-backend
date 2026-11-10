@@ -2,11 +2,12 @@ using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using Store.API.Helper;
 using Store.API.MiddleWare;
-using Store.Core.Interfaces;
 using Store.Infrastructure.Repositories;
 using Store.API.Services;
 using Microsoft.EntityFrameworkCore;
 using Store.Infrastructure.Data;
+using Store.Core.Interfaces.Repositories;
+using Store.Core.Interfaces.Servics;
 
 Env.NoClobber().TraversePath().Load();
 
@@ -60,6 +61,8 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 
 var app = builder.Build();
+
+app.Services.GetRequiredService<AutoMapper.IConfigurationProvider>().AssertConfigurationIsValid();
 
 // Add development-only API documentation endpoints.
 if (app.Environment.IsDevelopment())

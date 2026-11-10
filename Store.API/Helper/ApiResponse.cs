@@ -123,7 +123,8 @@ public static class ApiResponses
         IReadOnlyList<ApiError>? errors = null,
         string? traceId = null,
         int statusCode = StatusCodes.Status400BadRequest) =>
-        new(false, statusCode, message, null, errors, traceId is null ? null : new ApiMetadata(TraceId: traceId));
+        new(false, statusCode, message, null, errors,
+            traceId is null ? null : new ApiMetadata(TraceId: traceId));
 
     /// <summary>Creates a failure response for a list of validation errors (400 by default).</summary>
     public static ApiResponse<object> ValidationFailure(

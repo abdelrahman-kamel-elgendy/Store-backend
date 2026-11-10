@@ -1,8 +1,6 @@
-using System;
-using Store.Core.DTO;
+using Store.Core.DTO.Product;
 
-namespace Store.Core.Interfaces;
-
+namespace Store.Core.Interfaces.Servics;
 public interface IProductService : IGenericService<ProductDto, CreateProductRequest, UpdateProductRequest>
 {
 

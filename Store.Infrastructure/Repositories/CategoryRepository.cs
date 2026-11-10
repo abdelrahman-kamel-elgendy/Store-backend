@@ -1,6 +1,5 @@
-using System;
-using Store.Core.Entities.Product;
-using Store.Core.Interfaces;
+using Store.Core.Entities;
+using Store.Core.Interfaces.Repositories;
 using Store.Infrastructure.Data;
 
 namespace Store.Infrastructure.Repositories;

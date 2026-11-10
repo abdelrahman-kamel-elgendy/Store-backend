@@ -1,34 +1,31 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Store.Core.Entities.Product;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using Store.Core.Entities;
 
-namespace Store.Infrastructure.Data.Config
+namespace Store.Infrastructure.Data.Config;
+
+public class CategoryConfigration : IEntityTypeConfiguration<Category>
 {
-    /// <summary>Configures the category schema and its initial seed records.</summary>
-    public class CategoryConfigration : IEntityTypeConfiguration<Category>
+    public void Configure(EntityTypeBuilder<Category> builder)
     {
-        /// <summary>Defines category field constraints and seed data.</summary>
-        public void Configure(EntityTypeBuilder<Category> builder)
-        {
-            builder.Property(category => category.Name).IsRequired().HasMaxLength(100);
-            builder.Property(category => category.Id).IsRequired().HasMaxLength(500);
+        builder.Property(category => category.Name).IsRequired().HasMaxLength(100);
+        builder.Property(category => category.Description).HasMaxLength(500);
+        builder.HasIndex(category => category.ParentCategoryId);
+        builder.HasIndex(category => category.Name).IsUnique(false);
 
-            builder.HasData(
-                new Category
-                {
-                    Id = 1,
-                    Name = "Test",
-                    Description = "Test Category"
-                },
-                new Category
-                {
-                    Id = 2,
-                    Name = "Test_2",
-                    Description = "Test Category 2"
-                });
-        }
+        builder.HasOne(c => c.ParentCategory)
+            .WithMany(c => c.SubCategories)
+            .HasForeignKey(c => c.ParentCategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(category => category.SubCategories)
+            .WithOne(category => category.ParentCategory)
+            .HasForeignKey(category => category.ParentCategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(category => category.Products)
+            .WithOne(product => product.Category)
+            .HasForeignKey(product => product.CategoryId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

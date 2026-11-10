@@ -1,7 +1,7 @@
-using System;
-using Store.Core.Entities.Product;
+using Store.Core.Entities;
 
-namespace Store.Core.Interfaces;
+
+namespace Store.Core.Interfaces.Repositories;
 
 public interface ICategoryRepository : IGenericRepository<Category>
 {

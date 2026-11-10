@@ -1,26 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Store.Core.Interfaces.Entities;
 
-namespace Store.Core.Entities
+namespace Store.Core.Entities;
+
+/// <summary>Provides the common persistence keys and audit metadata shared across persisted entities.</summary>
+/// <typeparam name="T">The entity key type (for example <see cref="int"/> or <see cref="Guid"/>).</typeparam>
+public abstract class BaseEntity<T> : IAuditable, ISoftDeletable
+    where T : notnull, IEquatable<T>
 {
-    /// <summary>Provides the integer key and common lifecycle fields for persisted entities.</summary>
-    /// <typeparam name="T">The entity key type.</typeparam>
-    public class BaseEntity<T>
+    public T Id { get; set; } = default!;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+    public string? CreatedBy { get; set; }
+    public string? UpdatedBy { get; set; }
+
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletedBy { get; set; }
+
+    public virtual void SoftDelete()
     {
-        /// <summary>Gets or sets the entity's primary key.</summary>
-        public T Id { get; set; }
+        IsDeleted = true;
+    }
 
-        /// <summary>Gets or sets when the entity was created.</summary>
-        public DateTime CreatedAt { get; set; }
-
-        /// <summary>Gets or sets when the entity was last updated.</summary>
-        public DateTime UpdatedAt { get; set; }
-
-        /// <summary>Gets or sets whether the entity is logically deleted.</summary>
-        public bool IsDeleted { get; set; } = false;
-
-        /// <summary>Gets or sets when the entity was deleted.</summary>
-        public DateTime DeletedAt { get; set; }
+    public virtual void Restore()
+    {
+        IsDeleted = false;
+        DeletedAt = null;
+        DeletedBy = null;
     }
 }

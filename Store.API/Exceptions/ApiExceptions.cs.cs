@@ -1,5 +1,4 @@
-namespace Store.API.Errors;
-
+namespace Store.API.Exceptions;
 /// <summary>Represents invalid request data with associated field errors.</summary>
 public sealed class ValidationException(string message, IReadOnlyDictionary<string, IEnumerable<string>> errors) : Exception(message)
 {
@@ -19,3 +18,5 @@ public sealed class BusinessRuleException(string message) : Exception(message);
 public sealed class RateLimitException(string message) : Exception(message);
 
 public sealed class ServiceUnavailableException(string message) : Exception(message);
+
+public sealed class NotFoundException(string message) : Exception(message);

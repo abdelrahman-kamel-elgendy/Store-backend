@@ -1,103 +1,59 @@
-﻿# Store Backend
+# Store Backend
 
-Store Backend is a .NET 10 ASP.NET Core Web API for a simple catalog-style backend. The repository currently includes a reusable CRUD API layer, EF Core persistence with SQL Server, and concrete category and product endpoints built on top of that foundation.
+Store Backend is a .NET 10 ASP.NET Core Web API for managing a product catalog. It provides category and product CRUD endpoints, hierarchical categories, SQL Server persistence through Entity Framework Core, and a consistent JSON response envelope.
 
-This README reflects the current state of the codebase and is intended to help developers understand the project structure, configuration, and available API surface.
+## Contents
 
-## Table of contents
-
-- [Project status](#project-status)
-- [Technology stack](#technology-stack)
-- [Architecture](#architecture)
-- [Project structure](#project-structure)
-- [Prerequisites](#prerequisites)
+- [Features and scope](#features-and-scope)
+- [Technology](#technology)
+- [Solution structure](#solution-structure)
+- [Requirements](#requirements)
 - [Configuration](#configuration)
-- [Setup](#setup)
-- [Running the API](#running-the-api)
-- [API endpoints](#api-endpoints)
-- [Database model](#database-model)
-- [Authentication and security](#authentication-and-security)
-- [Known limitations](#known-limitations)
+- [Run locally](#run-locally)
+- [API](#api)
+- [Response format and errors](#response-format-and-errors)
+- [Data model](#data-model)
+- [Validation and business rules](#validation-and-business-rules)
+- [Persistence behavior](#persistence-behavior)
+- [Development and migrations](#development-and-migrations)
+- [Security and limitations](#security-and-limitations)
 
-## Project status
+## Features and scope
 
-### Implemented
+- Category and product CRUD APIs.
+- Self-referencing categories with parent/child relationships.
+- Category list and category-by-ID responses represented as nested category trees.
+- Product responses include the category name and associated photo details.
+- Pagination for category and product collection endpoints.
+- Centralized model validation, service exception mapping, and trace IDs.
+- Soft deletion and restore endpoints for catalog entities.
+- Development-only OpenAPI document and Swagger UI.
 
-- ASP.NET Core Web API targeting .NET 10
-- Entity Framework Core 10 with the SQL Server provider
-- Catalog domain model for categories, products, and product photos
-- Generic repository and service abstractions for CRUD operations
-- Concrete `CategoryController` and `ProductController` endpoints
-- AutoMapper configuration via `MappingProfile`
-- Shared API response envelope and exception handling middleware
-- OpenAPI/Swagger generation for development
-- Environment variable loading with `DotNetEnv`
+This repository is a catalog backend foundation. It does not currently implement user accounts, authentication, authorization, orders, carts, checkout, payment processing, or photo upload.
 
-### Partially implemented
+## Technology
 
-- The project has a working CRUD foundation for catalog resources, but it is still focused on backend infrastructure rather than a full storefront workflow.
-- `BaseEntity<int>` provides shared ID behavior and is used consistently by the domain model.
-- The repository contains startup and infrastructure wiring for the catalog domain, but there are no authentication or user-management features yet.
-
-### Not implemented
-
-The following are not part of the current codebase:
-
-- User accounts, JWT, roles, or authorization policies
-- Orders, carts, checkout, payments, or shipping
-- Product image upload, inventory tracking, or stock management
-- Advanced validation, audit trails, or soft-delete workflows beyond the base model shape
-- Health checks, distributed tracing, and deployment automation
-
-## Technology stack
-
-| Area | Technology | Purpose |
-|---|---|---|
-| Language | C# | Application code |
-| Runtime | .NET 10 / ASP.NET Core 10 | Web API host and HTTP pipeline |
-| Data access | EF Core 10 | ORM and persistence layer |
-| Database | SQL Server | Relational storage |
-| Mapping | AutoMapper | DTO/entity mapping |
-| Environment config | DotNetEnv | Loads `.env` values at startup |
-| API docs | OpenAPI + Swagger UI | Local API documentation |
-| Layering | Core / Infrastructure / API | Separate domain, persistence, and API concerns |
-
-## Architecture
-
-The solution follows a three-layer structure:
-
-- `Store.Core`: entities, DTOs, interfaces, and shared domain abstractions
-- `Store.Infrastructure`: `AppDbContext`, repositories, and infrastructure registration
-- `Store.API`: controllers, services, middleware, and startup configuration
-
-```mermaid
-flowchart LR
-    Client[HTTP client] --> API[Store.API]
-    API --> Controller[Category/Product controllers]
-    Controller --> Service[GenericService / CategoryService / ProductService]
-    Service --> Repository[GenericRepository]
-    Repository --> Db[(SQL Server)]
-    Core[Store.Core] --> Entities[Entities / DTOs / Interfaces]
-```
-
-### Current responsibility boundaries
-
-| Component | Responsibility |
+| Area | Technology |
 |---|---|
-| `Store.API` | HTTP endpoints, middleware, DTO handling, and startup configuration |
-| `Store.Infrastructure` | EF Core context, repository implementations, and DI registration |
-| `Store.Core` | Domain entities, DTO records, interfaces, and exceptions |
-| `BaseController<TResponse, TCreateRequest, TUpdateRequest>` | Shared CRUD route behavior for integer-keyed resources |
-| `GenericService<TEntity, ...>` | Common create/read/update/delete logic |
-| `AppDbContext` | Exposes `Categories`, `Products`, and `Photos` as EF Core sets |
-| `MappingProfile` | Maps entity and request models to DTOs and back |
+| Language | C# |
+| Runtime and API | .NET 10, ASP.NET Core controllers |
+| Database | SQL Server |
+| Data access | Entity Framework Core 10 |
+| Mapping | AutoMapper |
+| Local configuration | DotNetEnv and ASP.NET Core configuration |
+| API description | ASP.NET Core OpenAPI and Swagger UI |
 
-## Project structure
+## Solution structure
+
+The solution is split into three projects:
+
+- `Store.Core`: domain entities, request and response DTOs, validation rules, and service/repository contracts.
+- `Store.Infrastructure`: EF Core `AppDbContext`, entity configuration, migrations, and SQL Server repository implementations.
+- `Store.API`: controllers, application services, AutoMapper profiles, API response helpers, middleware, and application startup.
 
 ```text
 Store-backend/
 ├── .env.example
-├── .gitignore
 ├── README.md
 ├── Store.slnx
 ├── Store.API/
@@ -105,248 +61,256 @@ Store-backend/
 │   │   ├── BaseController.cs
 │   │   ├── CategoryController.cs
 │   │   └── ProductController.cs
-│   ├── DTO/
-│   │   └── PaginationQuery.cs
-│   ├── Errors/
-│   │   └── ApiExceptions.cs
-│   ├── Helper/
-│   │   └── ApiResponse.cs
+│   ├── DTO/PaginationQuery.cs
+│   ├── Exceptions/ApiExceptions.cs.cs
+│   ├── Helper/ApiResponse.cs
 │   ├── Mapping/
-│   │   └── MappingProfile.cs
-│   ├── MiddleWare/
-│   │   └── ExceptionHandlingMiddleware.cs
+│   │   ├── CategoryMapping.cs
+│   │   └── ProductMapping.cs
+│   ├── MiddleWare/ExceptionHandlingMiddleware.cs
 │   ├── Services/
 │   │   ├── CategoryService.cs
 │   │   ├── GenericService.cs
 │   │   └── ProductService.cs
-│   ├── Properties/
-│   │   └── launchSettings.json
+│   ├── Properties/launchSettings.json
 │   ├── Program.cs
-│   ├── Store.API.csproj
-│   ├── Store.API.http
-│   ├── appsettings.json
-│   └── appsettings.Development.json
+│   └── Store.API.csproj
 ├── Store.Core/
 │   ├── DTO/
-│   │   ├── CategoryDTO.cs
-│   │   ├── ProductDTO.cs
-│   │   └── PagedResult.cs
-│   ├── Entities/
-│   │   ├── BaseEntity.cs
+│   │   ├── Category/
+│   │   ├── Photo/
 │   │   └── Product/
-│   │       ├── Category.cs
-│   │       ├── Photo.cs
-│   │       └── Product.cs
-│   ├── Exceptions/
-│   │   └── NotFoundException.cs
+│   ├── Entities/
 │   ├── Interfaces/
+│   │   ├── Entities/
 │   │   ├── Repositories/
 │   │   └── Services/
+│   ├── Validation/ValidationRules.cs
 │   └── Store.Core.csproj
-├── Store.Infrastructure/
-│   ├── Data/
-│   │   └── AppDbContext.cs
-│   ├── Repositories/
-│   │   ├── CategoryRepository.cs
-│   │   ├── GenericRepository.cs
-│   │   ├── ProductRepository.cs
-│   │   └── UnitOfWork.cs
-│   ├── InfrastructureRegistration.cs
-│   └── Store.Infrastructure.csproj
-└── src/
-    └── (empty placeholder directory)
+└── Store.Infrastructure/
+    ├── Data/
+    │   ├── Config/
+    │   ├── Migrations/
+    │   └── AppDbContext.cs
+    ├── Repositories/
+    └── Store.Infrastructure.csproj
 ```
 
-> Note: `src/` is currently only a placeholder and the real application projects live in the repository root.
-
-## Prerequisites
+## Requirements
 
 - .NET 10 SDK
-- SQL Server instance or a reachable local SQL Server database
-- User permissions to create and use the target database
-- Git and a terminal
-- Optional: `dotnet-ef` if you want to manage migrations from the command line
+- A reachable SQL Server instance
+- Permission to create or update the configured database
+- `dotnet-ef` for managing EF Core migrations from the command line
 
 ## Configuration
 
-### Required connection string
-
-The API expects a connection string named `StoreDb`:
-
-```csharp
-builder.Configuration.GetConnectionString("StoreDb")
-```
-
-This is populated from the environment and can be set in a local `.env` file using the ASP.NET Core environment variable convention:
+The API requires a connection string named `StoreDb`. Startup fails with a configuration error if it is missing. The repository includes `.env.example` with a local SQL Server example:
 
 ```env
 ConnectionStrings__StoreDb=Server=localhost;Database=Store;Trusted_Connection=True;TrustServerCertificate=True
 ```
 
-The project calls `Env.NoClobber().TraversePath().Load();` at startup, which loads the repository-root `.env` file without overwriting any existing environment variables already set in the process.
+Create a local `.env` file from the example and adjust the connection string for your SQL Server:
 
-### `.env.example`
-
-The repository includes a safe template for local setup:
-
-```env
-ConnectionStrings__StoreDb=Server=localhost;Database=Store;Trusted_Connection=True;TrustServerCertificate=True
+```powershell
+Copy-Item .env.example .env
 ```
 
-For SQL authentication, use a local-only value such as:
+`DotNetEnv` loads `.env` from the repository directory tree without overwriting environment variables already present in the process. You can instead set `ConnectionStrings__StoreDb` in your environment or hosting configuration. Never commit real passwords or credentials.
 
-```env
-ConnectionStrings__StoreDb=Server=localhost;Database=Store;User Id=myuser;Password=yourStrongPassword;TrustServerCertificate=True
-```
+## Run locally
 
-Never commit a real password or secret.
+From the repository root:
 
-## Setup
-
-1. Clone the repository:
-
-   ```bash
-   git clone <repository-url>
-   cd Store-backend
-   ```
-
-2. Create a local environment file:
-
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-
-   or on Unix-like systems:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-3. Update the database connection string in `.env`.
-
-4. Restore and build the solution:
-
-   ```bash
-   dotnet restore Store.slnx
-   dotnet build Store.slnx
-   ```
-
-5. Run the API:
-
-   ```bash
-   dotnet run --project Store.API
-   ```
-
-## Running the API
-
-The launch profile in `Store.API/Properties/launchSettings.json` configures local development URLs. The application also enables HTTPS redirection and Swagger/OpenAPI in development mode.
-
-Start the API with:
-
-```bash
+```powershell
+dotnet restore Store.slnx
+dotnet build Store.slnx
 dotnet run --project Store.API
 ```
 
-Then open:
+The Development launch profile uses `http://localhost:5189`. When running in Development:
 
-- `http://localhost:5189/swagger`
-- `http://localhost:5189/openapi/v1.json`
+- Swagger UI: `http://localhost:5189/swagger`
+- OpenAPI JSON: `http://localhost:5189/openapi/v1.json`
 
-## API endpoints
+The API redirects HTTP requests to HTTPS when an HTTPS endpoint is configured by the host.
 
-The repository currently exposes concrete CRUD endpoints for categories and products through the generic base controller pattern.
+## API
 
-### Category endpoints
+Routes are implemented as MVC controllers. The shared `BaseController` defines the CRUD operations for both resources.
 
-Base route: `api/category`
+### Categories
 
-- `GET /api/category?page=1&pageSize=10`
-- `GET /api/category/{id:int}`
-- `POST /api/category`
-- `PUT /api/category/{id:int}`
-- `DELETE /api/category/{id:int}`
+Base route: `/api/category`
 
-### Product endpoints
+| Method | Route | Behavior |
+|---|---|---|
+| `GET` | `/api/category?page=1&pageSize=20` | Returns paged root categories; each root includes its descendant categories in `subCategories`. Pagination applies to roots. |
+| `GET` | `/api/category/{id}` | Returns the requested category and its descendant tree. |
+| `POST` | `/api/category` | Creates a category. Set `parentCategoryId` to a parent category ID or `null` for a root. |
+| `PUT` | `/api/category/{id}` | Updates the category identified by the route ID. The request body does not include the category's own ID. |
+| `DELETE` | `/api/category/{id}` | Soft-deletes the category. |
+| `PATCH` | `/api/category/{id}/restore` | Restores a soft-deleted category. |
 
-Base route: `api/product`
+Category tree responses have this shape:
 
-- `GET /api/product?page=1&pageSize=10`
-- `GET /api/product/{id:int}`
-- `POST /api/product`
-- `PUT /api/product/{id:int}`
-- `DELETE /api/product/{id:int}`
-
-### Request shapes
-
-Category request models:
-
-```csharp
-public record CreateCategoryRequest(string Name, string Description);
-public record UpdateCategoryRequest(int Id, string Name, string Description);
-```
-
-Product request models:
-
-```csharp
-public record CreateProductRequest(string Name, string Description, decimal Price);
-public record UpdateProductRequest(int Id, string Name, string Description, decimal Price);
-```
-
-## Database model
-
-The EF Core model includes:
-
-- `Category`
-- `Product`
-- `Photo`
-
-The domain objects currently model a simple product catalog with product-to-category relationships:
-
-```csharp
-public class Category : BaseEntity<int>
+```json
 {
-    public string Name { get; set; }
-    public string Description { get; set; }
-    public ICollection<Product> Products { get; set; } = new HashSet<Product>();
-}
-
-public class Product : BaseEntity<int>
-{
-    public string Name { get; set; }
-    public string Description { get; set; }
-    public decimal Price { get; set; }
-    public int CategoryId { get; set; }
-    public Category Category { get; set; }
-    public ICollection<Photo> Photos { get; set; } = new HashSet<Photo>();
+  "id": 1,
+  "name": "Electronics",
+  "description": "Electronic devices and gadgets",
+  "parentCategoryId": null,
+  "subCategories": [
+    {
+      "id": 6,
+      "name": "Phones",
+      "description": "Smartphones and accessories",
+      "parentCategoryId": 1,
+      "subCategories": []
+    }
+  ]
 }
 ```
 
-`AppDbContext` is configured to use SQL Server and register the catalog sets.
+### Products
 
-## Authentication and security
+Base route: `/api/product`
 
-This repository does not currently implement authentication or authorization.
+| Method | Route | Behavior |
+|---|---|---|
+| `GET` | `/api/product?page=1&pageSize=20` | Returns a page of products with category and photo details. |
+| `GET` | `/api/product/{id}` | Returns one product with category and photo details. |
+| `POST` | `/api/product` | Creates a product. |
+| `PUT` | `/api/product/{id}` | Updates the product identified by the route ID. The request body does not include the product's own ID. |
+| `DELETE` | `/api/product/{id}` | Soft-deletes the product. |
+| `PATCH` | `/api/product/{id}/restore` | Restores a soft-deleted product. |
 
-Current state:
+Pagination defaults to page `1` and page size `20`; the allowed page size is 1–100.
 
-- No user model or identity provider
-- No JWT or bearer-token authentication
-- No authorization policies or role enforcement
-- No login or registration endpoints
-- No API key or secret management beyond `.env` local configuration
+Example create-product request:
 
-Validation is handled through ASP.NET Core model validation and shared error responses, but there is no custom security model around user access yet.
+```http
+POST http://localhost:5189/api/product
+Content-Type: application/json
 
-## Known limitations
+{
+  "name": "iPhone 15",
+  "description": "Apple smartphone 128GB",
+  "price": 999.99,
+  "categoryId": 6,
+  "photoId": 0
+}
+```
 
-- The project is a backend foundation, not a complete commerce application
-- There is no user management, cart, order, or checkout flow
-- Product images are modeled but no photo upload or media endpoint is implemented yet
-- There are no migration files checked into source control by default
-- The code currently uses straightforward EF Core CRUD patterns without a richer business-layer abstraction or audit pipeline
-- There is no health check endpoint, observability pipeline, or deployment configuration yet
+Example create-category request:
 
-## License
+```http
+POST http://localhost:5189/api/category
+Content-Type: application/json
 
-This project does not currently include a repository-level license file. Add one before publicly distributing or reusing the project in a production or commercial context.
+{
+  "name": "Phones",
+  "description": "Smartphones and accessories",
+  "parentCategoryId": 1
+}
+```
 
+Product request fields include `name`, `description`, `price`, and `categoryId`. The current request DTO also accepts `photoId`; photo upload/management is not implemented as an API workflow.
+
+## Response format and errors
+
+JSON endpoints use a shared response envelope:
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Products retrieved successfully.",
+  "data": [],
+  "meta": {
+    "pagination": {
+      "page": 1,
+      "pageSize": 20,
+      "totalItems": 0,
+      "totalPages": 0,
+      "hasPreviousPage": false,
+      "hasNextPage": false
+    }
+  }
+}
+```
+
+Success responses include `success`, `statusCode`, `message`, and `data`. Paged responses include pagination metadata. Failure responses include a safe message and may include `errors`; trace information is returned in `meta` when available. Internal exception details are logged server-side and are not included as an error-clarification field in responses.
+
+Typical status codes include:
+
+- `200 OK`: successful reads and updates.
+- `201 Created`: successful resource creation, with a `Location` header.
+- `204 No Content`: successful delete.
+- `400 Bad Request`: invalid input or business validation error.
+- `404 Not Found`: requested resource or category not found.
+- `409 Conflict`: duplicate category/product name.
+- `422 Unprocessable Entity`: business rule failure.
+- `500 Internal Server Error`: unexpected failure, with a safe client-facing message.
+
+ASP.NET Core model-state failures and service exceptions are converted into the same response envelope. Each error response includes a trace ID when available, which can be used to correlate the response with server logs.
+
+## Data model
+
+The persistence model contains:
+
+- `Category`: name, description, optional parent category, child categories, and products.
+- `Product`: name, description, price, required category, and photos.
+- `Photo`: image name, URL, main-photo flag, and product ID.
+
+Categories form a self-referencing hierarchy through `ParentCategoryId` and `SubCategories`. Product-to-category deletion is restricted by the database relationship configuration. Product photos are modeled in the domain but there is currently no photo management endpoint.
+
+All three entities derive from `BaseEntity<int>`, which provides an integer ID, audit fields, and soft-delete fields. `AppDbContext` applies audit metadata during save operations and configures a global query filter to exclude soft-deleted entities from normal queries.
+
+## Validation and business rules
+
+Request DTOs use data annotations and `IValidatableObject`; shared text and numeric validation helpers are in `Store.Core/Validation/ValidationRules.cs`. API controllers rely on ASP.NET Core model validation.
+
+Service-level rules include:
+
+- Category names must be unique when creating or updating categories.
+- A specified parent category must exist.
+- A category cannot be its own parent.
+- A product's category must exist.
+- Product names must be unique when creating or updating products.
+- Page numbers must be positive, and page sizes must be between 1 and 100.
+
+AutoMapper profiles are registered at startup and validated before the application starts, so invalid mapping configuration fails early.
+
+## Persistence behavior
+
+- `DELETE` is a soft delete; it does not physically remove a catalog row.
+- Normal queries exclude soft-deleted entities through the EF Core global query filter.
+- `PATCH /api/{resource}/{id}/restore` restores a soft-deleted row.
+- Category list pagination counts and pages root categories, then includes their descendants in the response tree.
+- Product list reads include the product category and photos needed by the response DTO.
+
+## Development and migrations
+
+Build the solution with:
+
+```powershell
+dotnet build Store.slnx
+```
+
+EF Core migrations are maintained in `Store.Infrastructure/Data/Migrations`. To apply pending migrations to the configured database, install or use the `dotnet-ef` tool and run:
+
+```powershell
+dotnet ef database update --project Store.Infrastructure --startup-project Store.API
+```
+
+In the current startup configuration, the API does not automatically apply database migrations.
+
+## Security and limitations
+
+- Authentication and authorization are not currently implemented; endpoints should not be considered protected.
+- Store secrets outside source control, such as in user secrets, environment variables, or a secure deployment configuration.
+- There is no order, cart, checkout, payment, stock/inventory, or media-upload workflow.
+- Health checks, distributed tracing, and deployment manifests are not included.
+- No repository-level license file is currently present.

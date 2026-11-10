@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http;
 using Store.API.DTO;
 using Store.API.Helper;
-using Store.Core.Interfaces;
+using Store.Core.DTO;
+using Store.Core.Interfaces.Servics;
 
 namespace Store.API.Controllers;
 
@@ -13,11 +13,26 @@ namespace Store.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public abstract class BaseController<TResponse, TCreateRequest, TUpdateRequest>(
+public abstract class BaseController<TEntity, TResponse, TCreateRequest, TUpdateRequest>(
     IGenericService<TResponse, TCreateRequest, TUpdateRequest> service) : ControllerBase
+    where TResponse : IIdentifiableDto
 {
-    protected virtual string ResourceName => typeof(TResponse).Name;
+    protected virtual string ResourceName => typeof(TEntity).Name;
     protected virtual string ResourceCollectionName => $"{ResourceName}s";
+
+    [HttpPost]
+    [EndpointSummary("Create a resource")]
+    [EndpointDescription("Creates a resource and returns it with a Location header.")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
+    public virtual async Task<ActionResult<ApiResponse<TResponse>>> Create([FromBody] TCreateRequest request)
+    {
+        var response = await service.CreateAsync(request);
+        return CreatedAtAction(
+            nameof(GetById),
+            new { id = response.Id },
+            ApiResponses.Success(response, $"{ResourceName} created successfully."));
+    }
 
     [HttpGet]
     [EndpointSummary("List resources using pagination")]
@@ -45,17 +60,6 @@ public abstract class BaseController<TResponse, TCreateRequest, TUpdateRequest>(
         return Ok(ApiResponses.Success(response, $"{ResourceName} with ID {id} retrieved successfully."));
     }
 
-    [HttpPost]
-    [EndpointSummary("Create a resource")]
-    [EndpointDescription("Creates a resource and returns it with a Location header.")]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
-    public virtual async Task<ActionResult<ApiResponse<TResponse>>> Create([FromBody] TCreateRequest request)
-    {
-        var response = await service.CreateAsync(request);
-        return CreatedAtAction(nameof(GetById), ApiResponses.Success(response, $"{ResourceName} created successfully."));
-    }
-
     [HttpPut("{id:int}")]
     [EndpointSummary("Update a resource")]
     [EndpointDescription("Updates the resource identified by the route ID.")]
@@ -69,8 +73,8 @@ public abstract class BaseController<TResponse, TCreateRequest, TUpdateRequest>(
     }
 
     [HttpDelete("{id:int}")]
-    [EndpointSummary("Delete a resource")]
-    [EndpointDescription("Deletes the resource identified by the route ID and returns no content.")]
+    [EndpointSummary("Soft delete a resource")]
+    [EndpointDescription("Marks the resource as deleted without removing it from storage.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
@@ -78,5 +82,16 @@ public abstract class BaseController<TResponse, TCreateRequest, TUpdateRequest>(
     {
         await service.DeleteAsync(id);
         return NoContent();
+    }
+
+    [HttpPatch("{id:int}/restore")]
+    [EndpointSummary("Restore a soft-deleted resource")]
+    [EndpointDescription("Restores a resource that was previously soft-deleted and returns it in the standard API response envelope.")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
+    public virtual async Task<ActionResult<ApiResponse<TResponse>>> Restore(int id)
+    {
+        var response = await service.RestoreAsync(id);
+        return Ok(ApiResponses.Success(response, $"{ResourceName} with ID {id} restored successfully."));
     }
 }

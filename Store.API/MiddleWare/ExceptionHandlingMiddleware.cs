@@ -1,7 +1,6 @@
 using System.Diagnostics;
-using Store.API.Errors;
+using Store.API.Exceptions;
 using Store.API.Helper;
-using Store.Core.Exceptions;
 
 namespace Store.API.MiddleWare;
 
@@ -70,7 +69,11 @@ public sealed class ExceptionHandlingMiddleware(
         }
 
         // The same status code goes in the HTTP response and in the JSON body.
-        var response = ApiResponses.Failure(result.Message, result.Errors, traceId, result.StatusCode);
+        var response = ApiResponses.Failure(
+            result.Message,
+            result.Errors,
+            traceId,
+            result.StatusCode);
 
         context.Response.StatusCode = result.StatusCode;
         await context.Response.WriteAsJsonAsync(response);
@@ -85,9 +88,7 @@ public sealed class ExceptionHandlingMiddleware(
         ValidationException e => new(
             StatusCodes.Status400BadRequest,
             e.Message,
-            e.Errors
-                .SelectMany(error => error.Value.Select(text => new ApiError(error.Key, text)))
-                .ToArray()),
+            [.. e.Errors.SelectMany(error => error.Value.Select(text => new ApiError(error.Key, text)))]),
 
         BadRequestException e => new(StatusCodes.Status400BadRequest, e.Message),
         NotFoundException e => new(StatusCodes.Status404NotFound, e.Message),
@@ -97,6 +98,7 @@ public sealed class ExceptionHandlingMiddleware(
         BusinessRuleException e => new(StatusCodes.Status422UnprocessableEntity, e.Message),
         RateLimitException e => new(StatusCodes.Status429TooManyRequests, e.Message),
         ServiceUnavailableException e => new(StatusCodes.Status503ServiceUnavailable, e.Message),
+        InvalidOperationException e => new(StatusCodes.Status500InternalServerError, e.Message),
 
         // Malformed request bodies, oversized payloads and similar errors raised by ASP.NET Core itself.
         BadHttpRequestException e => new(e.StatusCode, "The request is invalid."),
