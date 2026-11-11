@@ -8,15 +8,35 @@ using Microsoft.EntityFrameworkCore;
 using Store.Infrastructure.Data;
 using Store.Core.Interfaces.Repositories;
 using Store.Core.Interfaces.Servics;
+using Store.Core.Interfaces.Services;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
+using Store.API.Configuration;
+using Store.Infrastructure.Data.Seeding;
 
 Env.NoClobber().TraversePath().Load();
 
 // Configure application services before building the HTTP pipeline.
 var builder = WebApplication.CreateBuilder(args);
 
-if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("StoreDb")))
+var connectionString = builder.Configuration.GetConnectionString("StoreDb");
+if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException(
-            "Required configuration 'ConnectionStrings:StoreDb' is missing. Set the ConnectionStrings__StoreDb environment variable (for example in the repository-root .env file).");
+        "Required configuration 'ConnectionStrings:StoreDb' is missing. Set ConnectionStrings__StoreDb in the repository-root .env file or the host environment.");
+
+builder.Services
+    .AddOptions<DatabaseOptions>()
+    .Configure(options => options.ConnectionString = connectionString)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<SeedDatabaseOptions>()
+    .Configure(options => options.Enabled = builder.Configuration.GetValue<bool>("SEED_DATABASE"))
+    .Validate(
+        options => !options.Enabled || builder.Environment.IsDevelopment(),
+        "SEED_DATABASE=true is only allowed when ASPNETCORE_ENVIRONMENT=Development.")
+    .ValidateOnStart();
 
 
 // Convert MVC validation failures to the same response envelope used by middleware.
@@ -47,7 +67,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 
 // DB Context
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("StoreDb")));
+builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
+    options.UseSqlServer(serviceProvider.GetRequiredService<IOptions<DatabaseOptions>>().Value.ConnectionString));
 
 // Mapper
 builder.Services.AddAutoMapper(_ => { }, AppDomain.CurrentDomain.GetAssemblies());
@@ -55,14 +76,24 @@ builder.Services.AddAutoMapper(_ => { }, AppDomain.CurrentDomain.GetAssemblies()
 // Repositories
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IImageRepository, ImageRepository>();
+builder.Services.AddScoped<DbSeeder>();
 
 // Services 
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddSingleton<IImageManagementService, ImageManagmentService>();
+builder.Services.AddSingleton<IFileProvider>(new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")));
 
 var app = builder.Build();
 
-app.Services.GetRequiredService<AutoMapper.IConfigurationProvider>().AssertConfigurationIsValid();
+if (app.Environment.IsDevelopment() &&
+    app.Services.GetRequiredService<IOptions<SeedDatabaseOptions>>().Value.Enabled)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var seeder = scope.ServiceProvider.GetRequiredService<DbSeeder>();
+    await seeder.SeedAsync();
+}
 
 // Add development-only API documentation endpoints.
 if (app.Environment.IsDevelopment())

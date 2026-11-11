@@ -7,37 +7,70 @@ using Store.Core.Interfaces.Servics;
 
 namespace Store.API.Services;
 
-public class ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository, IMapper mapper)
-    : GenericService<Product, ProductDto, CreateProductRequest, UpdateProductRequest>(productRepository, mapper),
-      IProductService
+public class ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository, IImageRepository imageRepository, IMapper mapper) : GenericService<Product, ProductResponseDto, ProductRequestDto>(productRepository, mapper), IProductService
 {
-    public override async Task<ProductDto> CreateAsync(CreateProductRequest request)
-    {
-        int categoryId = request.CategoryId;
-        string productName = request.Name;
+    private readonly IProductRepository _productRepository = productRepository;
+    private readonly ICategoryRepository _categoryRepository = categoryRepository;
+    private readonly IImageRepository _imageRepository = imageRepository;
+    private readonly IMapper _mapper = mapper;
 
-        if (!await categoryRepository.ExistsByIdAsync(categoryId))
+    public override async Task<ProductResponseDto> CreateAsync(ProductRequestDto createProductRequest)
+    {
+        int categoryId = createProductRequest.CategoryId;
+        string productName = createProductRequest.Name;
+
+        // category validation
+        if (!await _categoryRepository.ExistsByIdAsync(categoryId))
             throw new NotFoundException($"Category with ID {categoryId} was not found.");
 
-        if (await productRepository.ExistsByNameAsync(productName))
+        // product validation
+        if (await _productRepository.ExistsByNameAsync(productName))
             throw new ConflictException($"Product with name {productName} already exists.");
 
-        return await base.CreateAsync(request);
+        // product mapping
+        var product = _mapper.Map<Product>(createProductRequest);
+
+        // product creating
+        await _productRepository.AddAsync(product);
+
+        // saving images
+        await _imageRepository.SaveImagesAsync(createProductRequest.Images, product.Id, productName);
+
+        // response mapping
+        return _mapper.Map<ProductResponseDto>(product);
     }
 
-    public override async Task<ProductDto> UpdateAsync(int id, UpdateProductRequest request)
+    public override async Task<ProductResponseDto> UpdateAsync(int id, ProductRequestDto updateProductRequest)
     {
-        int categoryId = request.CategoryId;
-        string productName = request.Name;
+        int categoryId = updateProductRequest.CategoryId;
+        string productName = updateProductRequest.Name;
 
-        if (!await categoryRepository.ExistsByIdAsync(categoryId))
+        // catgory validation
+        if (!await _categoryRepository.ExistsByIdAsync(categoryId))
             throw new NotFoundException($"Category with ID {categoryId} was not found.");
 
-        var product = await productRepository.GetByNameAsync(productName);
-        if (product is not null)
-            if (!product.IsDeleted && product.Id != id)
+        // product validation
+        if (!await _productRepository.ExistsByIdAsync(id))
+            throw new NotFoundException($"Product with ID {categoryId} was not found.");
+
+        var existingProduct = await _productRepository.GetByNameAsync(productName);
+        if (existingProduct is not null)
+            if (!existingProduct.IsDeleted && existingProduct.Id != id)
                 throw new ConflictException($"Category with name {productName} already exists.");
 
-        return await base.UpdateAsync(id, request);
+        // product mapping
+        var product = _mapper.Map<Product>(updateProductRequest);
+
+        // remove product old imags
+        await _imageRepository.RemoveImagesAsync(id);
+
+        // saving product new imags
+        await _imageRepository.SaveImagesAsync(updateProductRequest.Images, product.Id, productName);
+
+        // product updating
+        await _productRepository.UpdateAsync(product);
+
+        // response mapping
+        return _mapper.Map<ProductResponseDto>(product);
     }
 }

@@ -4,11 +4,10 @@ using Store.Core.Entities;
 
 namespace Store.Infrastructure.Data.Config;
 
-public class PhotoConfigration : IEntityTypeConfiguration<Photo>
+public class PhotoConfigration : IEntityTypeConfiguration<Image>
 {
-    public void Configure(EntityTypeBuilder<Photo> builder)
+    public void Configure(EntityTypeBuilder<Image> builder)
     {
-        builder.Property(photo => photo.Name).IsRequired().HasMaxLength(200);
         builder.Property(photo => photo.Url).IsRequired().HasMaxLength(500);
         builder.HasIndex(photo => photo.ProductId);
         builder.HasIndex(photo => new { photo.ProductId, photo.IsMain });

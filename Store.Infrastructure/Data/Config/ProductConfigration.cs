@@ -9,7 +9,8 @@ public class ProductConfigration : IEntityTypeConfiguration<Product>
     public void Configure(EntityTypeBuilder<Product> builder)
     {
         builder.Property(product => product.Name).IsRequired().HasMaxLength(100);
-        builder.Property(product => product.Price).IsRequired().HasColumnType("decimal(18,2)");
+        builder.Property(product => product.NewPrice).IsRequired().HasColumnType("decimal(18,2)");
+        builder.Property(product => product.OldPrice).HasColumnType("decimal(18,2)");
         builder.Property(product => product.Description).HasMaxLength(1000);
         builder.HasIndex(product => product.CategoryId);
 

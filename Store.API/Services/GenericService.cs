@@ -10,16 +10,13 @@ namespace Store.API.Services;
 /// <summary>Implements the shared CRUD workflow for a mapped entity and its API DTOs.</summary>
 /// <typeparam name="TEntity">The persisted entity type.</typeparam>
 /// <typeparam name="TResponse">The response DTO returned to API callers.</typeparam>
-/// <typeparam name="TCreateRequest">The create request DTO.</typeparam>
-/// <typeparam name="TUpdateRequest">The update request DTO.</typeparam>
-public class GenericService<TEntity, TResponse, TCreateRequest, TUpdateRequest>(
-    IGenericRepository<TEntity> repository,
-    IMapper mapper) : IGenericService<TResponse, TCreateRequest, TUpdateRequest>
+/// <typeparam name="TRequest">The request DTO.</typeparam>
+public class GenericService<TEntity, TResponse, TRequest>(IGenericRepository<TEntity> repository, IMapper mapper) : IGenericService<TResponse, TRequest>
     where TEntity : BaseEntity<int>
 {
     protected virtual string EntityName => typeof(TEntity).Name; // gets the entity name used in not-found messages.
 
-    public virtual async Task<TResponse> CreateAsync(TCreateRequest request)
+    public virtual async Task<TResponse> CreateAsync(TRequest request)
     {
         var entity = mapper.Map<TEntity>(request);
         await repository.AddAsync(entity);
@@ -27,15 +24,15 @@ public class GenericService<TEntity, TResponse, TCreateRequest, TUpdateRequest>(
         return mapper.Map<TResponse>(entity);
     }
 
-    public virtual async Task<PagedResult<TResponse>> GetAllAsync(int page, int pageSize)
+    public virtual async Task<PagedResult<TResponse>> GetAllAsync(int page, int pageSize, bool includeDeleted = false)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, 100);
 
         var skip = (int)Math.Min((long)(page - 1) * pageSize, int.MaxValue);
-        var totalItems = await repository.CountAsync();
-        var entities = await repository.GetPageAsync(skip, pageSize);
+        var totalItems = await repository.CountAsync(includeDeleted);
+        var entities = await repository.GetPageAsync(skip, pageSize, includeDeleted);
 
         return new PagedResult<TResponse>(
             mapper.Map<IReadOnlyList<TResponse>>(entities),
@@ -44,14 +41,14 @@ public class GenericService<TEntity, TResponse, TCreateRequest, TUpdateRequest>(
             totalItems);
     }
 
-    public virtual async Task<TResponse> GetByIdAsync(int id)
+    public virtual async Task<TResponse> GetByIdAsync(int id, bool includeDeleted = false)
     {
-        var entity = await repository.GetByIdAsync(id) ?? throw new NotFoundException($"{EntityName} with ID {id} was not found.");
+        var entity = await repository.GetByIdAsync(id, includeDeleted) ?? throw new NotFoundException($"{EntityName} with ID {id} was not found.");
 
         return mapper.Map<TResponse>(entity);
     }
 
-    public virtual async Task<TResponse> UpdateAsync(int id, TUpdateRequest request)
+    public virtual async Task<TResponse> UpdateAsync(int id, TRequest request)
     {
         var entity = await repository.GetByIdAsync(id) ?? throw new NotFoundException($"{EntityName} with ID {id} was not found.");
 

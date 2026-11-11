@@ -4,28 +4,6 @@ namespace Store.Core.Validation;
 
 public static class ValidationRules
 {
-    public static void AddError(IDictionary<string, List<string>> errors, string field, string message)
-    {
-        if (string.IsNullOrWhiteSpace(field))
-            throw new ArgumentException("Validation field name cannot be null or empty.", nameof(field));
-
-        if (!errors.TryGetValue(field, out var values))
-        {
-            values = [];
-            errors[field] = values;
-        }
-
-        values.Add(message);
-    }
-
-    public static IReadOnlyDictionary<string, IEnumerable<string>> ToReadOnlyDictionary(
-        IDictionary<string, List<string>> errors)
-    {
-        return errors.ToDictionary(
-            pair => pair.Key,
-            pair => (IEnumerable<string>)pair.Value.ToArray());
-    }
-
     public static void AddRequiredText(
         ICollection<ValidationResult> results,
         string? value,

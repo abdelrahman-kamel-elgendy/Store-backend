@@ -82,6 +82,7 @@ appsettings.*.Local.json
 *.db-wal
 App_Data/
 Migrations/
+wwwroot/
 
 # Logs & temp files
 *.log

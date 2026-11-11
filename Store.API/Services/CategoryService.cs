@@ -9,10 +9,10 @@ using Store.Core.Interfaces.Servics;
 namespace Store.API.Services;
 
 public class CategoryService(ICategoryRepository categoryRepository, IMapper mapper)
-    : GenericService<Category, CategoryDto, CreateCategoryRequest, UpdateCategoryRequest>(categoryRepository, mapper),
+    : GenericService<Category, CategoryResponseDto, CategoryRequestDto>(categoryRepository, mapper),
       ICategoryService
 {
-    public override async Task<CategoryDto> CreateAsync(CreateCategoryRequest request)
+    public override async Task<CategoryResponseDto> CreateAsync(CategoryRequestDto request)
     {
         string categoryName = request.Name;
         int? parentCategoryId = request.ParentCategoryId;
@@ -27,18 +27,21 @@ public class CategoryService(ICategoryRepository categoryRepository, IMapper map
         return await base.CreateAsync(request);
     }
 
-    public override async Task<PagedResult<CategoryDto>> GetAllAsync(int page, int pageSize)
+    public override async Task<PagedResult<CategoryResponseDto>> GetAllAsync(
+        int page,
+        int pageSize,
+        bool includeDeleted = false)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, 100);
 
-        var categories = await categoryRepository.GetAllAsync();
+        var categories = await categoryRepository.GetAllAsync(includeDeleted);
         var categoriesByParentId = categories.ToLookup(category => category.ParentCategoryId);
         var rootCategories = categoriesByParentId[null].OrderBy(category => category.Id).ToArray();
         var skip = (int)Math.Min((long)(page - 1) * pageSize, int.MaxValue);
 
-        return new PagedResult<CategoryDto>(
+        return new PagedResult<CategoryResponseDto>(
             rootCategories
                 .Skip(skip)
                 .Take(pageSize)
@@ -52,9 +55,9 @@ public class CategoryService(ICategoryRepository categoryRepository, IMapper map
             rootCategories.Length);
     }
 
-    public override async Task<CategoryDto> GetByIdAsync(int id)
+    public override async Task<CategoryResponseDto> GetByIdAsync(int id, bool includeDeleted = false)
     {
-        var categories = await categoryRepository.GetAllAsync();
+        var categories = await categoryRepository.GetAllAsync(includeDeleted);
         var category = categories.FirstOrDefault(item => item.Id == id)
             ?? throw new NotFoundException($"Category with ID {id} was not found.");
         var categoriesByParentId = categories.ToLookup(item => item.ParentCategoryId);
@@ -62,7 +65,7 @@ public class CategoryService(ICategoryRepository categoryRepository, IMapper map
         return BuildCategoryTree(category, categoriesByParentId, new HashSet<int>());
     }
 
-    public override async Task<CategoryDto> UpdateAsync(int id, UpdateCategoryRequest request)
+    public override async Task<CategoryResponseDto> UpdateAsync(int id, CategoryRequestDto request)
     {
         string categoryName = request.Name;
         int? parentCategoryId = request.ParentCategoryId;
@@ -84,10 +87,19 @@ public class CategoryService(ICategoryRepository categoryRepository, IMapper map
         return await base.UpdateAsync(id, request);
     }
 
-    private static CategoryDto BuildCategoryTree(
-        Category category,
-        ILookup<int?, Category> categoriesByParentId,
-        HashSet<int> ancestorIds)
+    public override async Task<CategoryResponseDto> RestoreAsync(int id)
+    {
+        await categoryRepository.RestoreAsync(id);   // restores the category and its descendants
+
+        // Reload after restoring so the lookup reflects the new state.
+        var categories = await categoryRepository.GetAllAsync();   // live (non-deleted) categories
+        var category = categories.FirstOrDefault(c => c.Id == id) ?? throw new NotFoundException($"{EntityName} with ID {id} was not found.");
+
+        var byParent = categories.ToLookup(c => c.ParentCategoryId);
+        return BuildCategoryTree(category, byParent, []);
+    }
+
+    private static CategoryResponseDto BuildCategoryTree(Category category, ILookup<int?, Category> categoriesByParentId, HashSet<int> ancestorIds)
     {
         if (!ancestorIds.Add(category.Id))
             throw new InvalidOperationException($"A cycle was found in the category hierarchy at category ID {category.Id}.");
@@ -99,12 +111,17 @@ public class CategoryService(ICategoryRepository categoryRepository, IMapper map
 
         ancestorIds.Remove(category.Id);
 
-        return new CategoryDto(
+        return new CategoryResponseDto(
             category.Id,
             category.Name,
             category.Description,
             category.ParentCategoryId,
-            subCategories);
+            subCategories,
+            category.IsDeleted,
+            category.CreatedAt,
+            category.UpdatedAt,
+            category.DeletedAt
+            );
     }
 
 }

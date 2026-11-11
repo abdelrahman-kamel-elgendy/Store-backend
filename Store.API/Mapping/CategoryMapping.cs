@@ -8,13 +8,17 @@ public class CategoryMapping : Profile
 {
     public CategoryMapping()
     {
-        CreateMap<Category, CategoryDto>()
-            .ForCtorParam(nameof(CategoryDto.ParentCategoryId), options =>
-                options.MapFrom(source => source.ParentCategoryId))
-            .ForCtorParam(nameof(CategoryDto.SubCategories), options =>
-                options.MapFrom(source => source.SubCategories));
-        CreateMap<CreateCategoryRequest, Category>(MemberList.Source);
-        CreateMap<UpdateCategoryRequest, Category>(MemberList.Source);
+        // Entity -> Response
+        // Constructor params (Id, Name, Description, ParentCategoryId, SubCategories)
+        // match the entity's property names, so AutoMapper binds them by convention.
+        // The self-referencing SubCategories collection is mapped recursively.
+        CreateMap<Category, CategoryResponseDto>();
 
+        // Request -> Entity (used for both create and update via Map(dto, entity))
+        CreateMap<CategoryRequestDto, Category>(MemberList.Source)
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.ParentCategory, opt => opt.Ignore())
+            .ForMember(dest => dest.SubCategories, opt => opt.Ignore())
+            .ForMember(dest => dest.Products, opt => opt.Ignore());
     }
 }

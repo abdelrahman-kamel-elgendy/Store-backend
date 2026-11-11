@@ -7,7 +7,6 @@ namespace Store.API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class CategoryController(ICategoryService service) : BaseController<Category, CategoryDto, CreateCategoryRequest, UpdateCategoryRequest>(service)
+public class CategoryController(ICategoryService service) : BaseController<Category, CategoryResponseDto, CategoryRequestDto>(service)
 {
-
 }

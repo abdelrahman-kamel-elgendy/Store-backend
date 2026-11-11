@@ -1,15 +1,5 @@
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
-
 namespace Store.API.Helper;
-
-/// <summary>Non-generic view of an API response, used to read the status code without knowing the payload type.</summary>
-public interface IApiResponse
-{
-    /// <summary>The HTTP status code of the response.</summary>
-    int StatusCode { get; }
-}
 
 /// <summary>Standard envelope returned for JSON API responses.</summary>
 /// <typeparam name="T">The response payload type.</typeparam>
@@ -25,16 +15,14 @@ public sealed record ApiResponse<T>(
     string Message,
     T? Data,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ApiError>? Errors = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ApiMetadata? Meta = null) : IApiResponse;
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ApiMetadata? Meta = null);
 
 /// <summary>Describes a single error, optionally tied to a request field.</summary>
 /// <param name="Field">The related field name, or <c>null</c> for a general error.</param>
 /// <param name="Message">The error message.</param>
-/// <param name="Code">An optional machine-readable error code (for example, "NAME_REQUIRED").</param>
 public sealed record ApiError(
     string? Field,
-    string Message,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Code = null);
+    string Message);
 
 /// <summary>Optional response metadata such as pagination and trace identifiers.</summary>
 public sealed record ApiMetadata(
@@ -70,11 +58,6 @@ public sealed record PaginationMetadata(
 /// <summary>Creates the standard success and failure API response envelopes.</summary>
 public static class ApiResponses
 {
-    private const string ValidationMessage = "One or more validation errors occurred.";
-    private const string InvalidValueMessage = "The value is invalid.";
-
-    // ---------- Success ----------
-
     /// <summary>Creates a successful response with optional metadata.</summary>
     public static ApiResponse<T> Success<T>(
         T? data,
@@ -82,37 +65,6 @@ public static class ApiResponses
         ApiMetadata? meta = null,
         int statusCode = StatusCodes.Status200OK) =>
         new(true, statusCode, message, data, null, meta);
-
-    /// <summary>Creates a successful response with no payload.</summary>
-    public static ApiResponse<object> Success(string message, int statusCode = StatusCodes.Status200OK) =>
-        Success<object>(null, message, null, statusCode);
-
-    /// <summary>Creates a 201 Created response for a newly created resource.</summary>
-    public static ApiResponse<T> Created<T>(T data, string message = "Resource created successfully.", string? traceId = null) =>
-        Success(data, message, traceId is null ? null : new ApiMetadata(TraceId: traceId), StatusCodes.Status201Created);
-
-    /// <summary>Creates a successful paged response with pagination metadata.</summary>
-    /// <param name="items">The items on the current page.</param>
-    /// <param name="page">The current 1-based page number.</param>
-    /// <param name="pageSize">The requested page size.</param>
-    /// <param name="totalItems">The total number of items across all pages.</param>
-    /// <param name="message">The response message.</param>
-    /// <param name="traceId">An optional trace identifier.</param>
-    public static ApiResponse<IReadOnlyList<T>> Paged<T>(
-        IReadOnlyList<T> items,
-        int page,
-        int pageSize,
-        int totalItems,
-        string message = "Data retrieved successfully.",
-        string? traceId = null)
-    {
-        ArgumentNullException.ThrowIfNull(items);
-
-        var meta = new ApiMetadata(PaginationMetadata.Create(page, pageSize, totalItems), traceId);
-        return Success<IReadOnlyList<T>>(items, message, meta);
-    }
-
-    // ---------- Failure ----------
 
     /// <summary>
     /// Creates a failure response with optional errors and trace information.
@@ -125,34 +77,6 @@ public static class ApiResponses
         int statusCode = StatusCodes.Status400BadRequest) =>
         new(false, statusCode, message, null, errors,
             traceId is null ? null : new ApiMetadata(TraceId: traceId));
-
-    /// <summary>Creates a failure response for a list of validation errors (400 by default).</summary>
-    public static ApiResponse<object> ValidationFailure(
-        IReadOnlyList<ApiError> errors,
-        string? traceId = null,
-        int statusCode = StatusCodes.Status400BadRequest)
-    {
-        ArgumentNullException.ThrowIfNull(errors);
-        return Failure(ValidationMessage, errors, traceId, statusCode);
-    }
-
-    /// <summary>Creates a validation failure from the invalid entries of a <see cref="ModelStateDictionary"/>.</summary>
-    public static ApiResponse<object> ValidationFailure(
-        ModelStateDictionary modelState,
-        string? traceId = null,
-        int statusCode = StatusCodes.Status400BadRequest)
-    {
-        ArgumentNullException.ThrowIfNull(modelState);
-
-        var errors = modelState
-            .Where(entry => entry.Value is { Errors.Count: > 0 })
-            .SelectMany(entry => entry.Value!.Errors.Select(error => new ApiError(
-                string.IsNullOrEmpty(entry.Key) ? null : entry.Key,
-                string.IsNullOrWhiteSpace(error.ErrorMessage) ? InvalidValueMessage : error.ErrorMessage)))
-            .ToList();
-
-        return Failure(ValidationMessage, errors, traceId, statusCode);
-    }
 
     /// <summary>Creates a standard failure response for an HTTP status code.</summary>
     public static ApiResponse<object> FailureForStatusCode(int statusCode, string? traceId = null)
@@ -176,15 +100,4 @@ public static class ApiResponses
         return Failure(message, traceId: traceId, statusCode: statusCode);
     }
 
-    // ---------- Controller helper ----------
-
-    /// <summary>
-    /// Converts a response into an <see cref="ObjectResult"/> whose HTTP status matches the
-    /// <c>statusCode</c> in the body, so the two can never disagree.
-    /// </summary>
-    public static ObjectResult ToActionResult(this IApiResponse response)
-    {
-        ArgumentNullException.ThrowIfNull(response);
-        return new ObjectResult(response) { StatusCode = response.StatusCode };
-    }
 }
