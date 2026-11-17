@@ -28,6 +28,7 @@ public class ProductRepository(AppDbContext context) : CRUDRepository<Product>(c
     public override async Task<Product?> GetByIdAsync(int productId, bool includeDeleted = false)
     {
         var query = _context.Products.AsQueryable();
+
         if (includeDeleted)
             query = query.IgnoreQueryFilters();
 
@@ -43,5 +44,49 @@ public class ProductRepository(AppDbContext context) : CRUDRepository<Product>(c
             .Include(product => product.Images)
             .FirstOrDefaultAsync(product => product.Name == productName);
 
+    public async Task<IReadOnlyList<Product>> GetByCategoryIdAsync(int categoryId, int skip, int take, bool includeDeleted = false)
+    {
+        var query = _context.Products
+            .Include(product => product.Category)
+            .Include(product => product.Images)
+            .Where(product => product.CategoryId == categoryId);
 
+        if (includeDeleted)
+            query = query.IgnoreQueryFilters();
+
+        return await query.ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<Product>> GetByCategoryNameAsync(string categoryName, int skip, int take, bool includeDeleted = false)
+    {
+        var query = _context.Products
+            .Include(product => product.Category)
+            .Include(product => product.Images)
+            .Where(product => product.Category != null && product.Category.Name == categoryName);
+
+        if (includeDeleted)
+            query = query.IgnoreQueryFilters();
+
+        return await query.ToListAsync();
+    }
+
+    public async Task<int> CountByCategoryAsync(int categoryId, bool includeDeleted = false)
+    {
+        var query = _context.Products.Where(product => product.CategoryId == categoryId);
+
+        if (includeDeleted)
+            query = query.IgnoreQueryFilters();
+
+        return await query.CountAsync();
+    }
+
+    public async Task<int> CountByCategoryAsync(string categoryName, bool includeDeleted = false)
+    {
+        var query = _context.Products.Where(product => product.Category != null && product.Category.Name == categoryName);
+
+        if (includeDeleted)
+            query = query.IgnoreQueryFilters();
+
+        return await query.CountAsync();
+    }
 }

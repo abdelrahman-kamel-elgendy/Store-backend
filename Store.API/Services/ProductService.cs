@@ -1,5 +1,6 @@
 using AutoMapper;
 using Store.API.Exceptions;
+using Store.Core.DTOs;
 using Store.Core.DTOs.Product;
 using Store.Core.Entities;
 using Store.Core.Interfaces.Repositories;
@@ -40,6 +41,40 @@ public class ProductService(IProductRepository productRepository, ICategoryRepos
 
         // response mapping
         return _mapper.Map<ProductResponseDto>(product);
+    }
+
+    public async Task<PagedResult<ProductResponseDto>> GetByCategoryIdAsync(int categoryId, int page, int pageSize, bool includeDeleted = false)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, 100);
+
+        var skip = (int)Math.Min((long)(page - 1) * pageSize, int.MaxValue);
+        var totalItems = await _productRepository.CountByCategoryAsync(categoryId, includeDeleted);
+        var entities = await _productRepository.GetByCategoryIdAsync(categoryId, skip, pageSize, includeDeleted);
+
+        return new PagedResult<ProductResponseDto>(
+            _mapper.Map<IReadOnlyList<ProductResponseDto>>(entities),
+            page,
+            pageSize,
+            totalItems);
+    }
+
+    public async Task<PagedResult<ProductResponseDto>> GetByCategoryNameAsync(string categoryName, int page, int pageSize, bool includeDeleted = false)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, 100);
+
+        var skip = (int)Math.Min((long)(page - 1) * pageSize, int.MaxValue);
+        var totalItems = await _productRepository.CountByCategoryAsync(categoryName, includeDeleted);
+        var entities = await _productRepository.GetByCategoryNameAsync(categoryName, skip, pageSize, includeDeleted);
+
+        return new PagedResult<ProductResponseDto>(
+            _mapper.Map<IReadOnlyList<ProductResponseDto>>(entities),
+            page,
+            pageSize,
+            totalItems);
     }
 
     public override async Task<ProductResponseDto> UpdateAsync(int id, ProductRequestDto updateProductRequest)
