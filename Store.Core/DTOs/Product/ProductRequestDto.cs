@@ -13,23 +13,19 @@ namespace Store.Core.DTOs.Product;
 /// <param name="CategoryId">Existing category id.</param>
 /// <param name="Images">Images to store. Null or empty leaves the product without images. On update, the supplied set replaces the previous set.</param>
 public record ProductRequestDto(
-    [property: Required(AllowEmptyStrings = false, ErrorMessage = "Product name is required.")]
-    [property: NotWhitespace(ErrorMessage = "Product name is required.")]
-    [property: StringLength(100, MinimumLength = 2, ErrorMessage = "Product name must be between 2 and 100 characters.")]
+    [Required(AllowEmptyStrings = false, ErrorMessage = "Product name is required."), NotWhitespace(ErrorMessage = "Product name is required."), StringLength(100, MinimumLength = 2, ErrorMessage = "Product name must be between 2 and 100 characters.")]
     string Name,
 
-    [property: Required(AllowEmptyStrings = false, ErrorMessage = "Product description is required.")]
-    [property: NotWhitespace(ErrorMessage = "Product description is required.")]
-    [property: StringLength(1000, MinimumLength = 10, ErrorMessage = "Product description must be between 10 and 1000 characters.")]
+    [Required(AllowEmptyStrings = false, ErrorMessage = "Product description is required."), NotWhitespace(ErrorMessage = "Product description is required."), StringLength(1000, MinimumLength = 10, ErrorMessage = "Product description must be between 10 and 1000 characters.")]
     string Description,
 
-    [property: Range(typeof(decimal), "0.01", "9999999.99", ErrorMessage = "Product new price must be between 0.01 and 9999999.99.")]
+    [Range(typeof(decimal), "0.01", "9999999.99", ErrorMessage = "Product new price must be between 0.01 and 9999999.99.")]
     decimal NewPrice,
 
-    [property: Range(typeof(decimal), "0.01", "9999999.99", ErrorMessage = "Product old price must be between 0.01 and 9999999.99.")]
+    [Range(typeof(decimal), "0.01", "9999999.99", ErrorMessage = "Product old price must be between 0.01 and 9999999.99.")]
     decimal OldPrice,
 
-    [property: Range(1, int.MaxValue, ErrorMessage = "Category id must be greater than zero.")]
+    [Range(1, int.MaxValue, ErrorMessage = "Category id must be greater than zero.")]
     int CategoryId,
 
     IFormFileCollection? Images);
