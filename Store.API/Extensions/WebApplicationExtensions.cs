@@ -23,8 +23,7 @@ public static class WebApplicationExtensions
         app.UseStatusCodePages(async ctx =>
         {
             var http = ctx.HttpContext;
-            await http.Response.WriteAsJsonAsync(
-                ApiResponses.FailureForStatusCode(http.Response.StatusCode, http.TraceIdentifier));
+            await http.Response.WriteAsJsonAsync(ApiResponses.FailureForStatusCode(http.Response.StatusCode, http.TraceIdentifier));
         });
 
         return app;

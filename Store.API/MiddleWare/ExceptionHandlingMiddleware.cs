@@ -4,17 +4,11 @@ using Store.API.Helper;
 
 namespace Store.API.MiddleWare;
 
-/// <summary>Converts application exceptions into standardized API error responses.</summary>
-public sealed class ExceptionHandlingMiddleware(
-    RequestDelegate next,
-    ILogger<ExceptionHandlingMiddleware> logger)
+/// <summary>converts application exceptions into standardized API error responses.</summary>
+public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger, IWebHostEnvironment environment)
 {
-    /// <summary>Non-standard status code (used by nginx) for requests the client abandoned.</summary>
-    private const int ClientClosedRequest = 499;
 
-    private const string InternalErrorMessage = "An internal server error occurred. Please try again later.";
-
-    /// <summary>Invokes the next middleware and formats exceptions raised by the request.</summary>
+    /// <summary>invokes the next middleware and formats exceptions raised by the request.</summary>
     public async Task InvokeAsync(HttpContext context)
     {
         try
@@ -23,11 +17,13 @@ public sealed class ExceptionHandlingMiddleware(
         }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
-            // The client disconnected, so there is nobody left to send a response to.
-            logger.LogDebug("Request was canceled by the client. TraceId: {TraceId}", GetTraceId(context));
+            logger.LogDebug(
+                "Request was canceled by the client. TraceId: {TraceId}",
+                GetTraceId(context)
+                );
 
             if (!context.Response.HasStarted)
-                context.Response.StatusCode = ClientClosedRequest;
+                context.Response.StatusCode = 499;
         }
         catch (Exception exception)
         {
@@ -35,10 +31,7 @@ public sealed class ExceptionHandlingMiddleware(
 
             if (context.Response.HasStarted)
             {
-                logger.LogError(
-                    exception,
-                    "An exception occurred after the response started. TraceId: {TraceId}",
-                    traceId);
+                logger.LogError(exception, "An exception occurred after the response started. TraceId: {TraceId}", traceId);
                 throw;
             }
 
@@ -46,32 +39,37 @@ public sealed class ExceptionHandlingMiddleware(
         }
     }
 
-    /// <summary>Maps an exception to its status code, logs it, and writes the shared response.</summary>
+    /// <summary>maps an exception to its status code, logs it, and writes the shared response.</summary>
     private async Task HandleExceptionAsync(HttpContext context, Exception exception, string traceId)
     {
         var result = MapException(exception);
 
         if (result.StatusCode >= StatusCodes.Status500InternalServerError)
-        {
             logger.LogError(
                 exception,
-                "Unhandled exception processing request. Status: {StatusCode}. TraceId: {TraceId}",
+                "Unhandled server error processing request. Status: {StatusCode}. TraceId: {TraceId}",
                 result.StatusCode,
                 traceId);
-        }
+
         else
-        {
-            logger.LogInformation(
+            logger.LogWarning(
                 "Request failed with status {StatusCode}: {Message}. TraceId: {TraceId}",
                 result.StatusCode,
                 result.Message,
                 traceId);
-        }
 
-        // The same status code goes in the HTTP response and in the JSON body.
+        // if we are in Development, use the actual exception message for 500s to help debugging.
+        var finalMessage = result.StatusCode == StatusCodes.Status500InternalServerError && environment.IsDevelopment() ? $"[DEV] {exception.Message}" : result.Message;
+
+        // if in Development, we can also pass the StackTrace to the errors list
+        var finalErrors = result.Errors;
+        if (environment.IsDevelopment() && result.StatusCode >= 500)
+            finalErrors = new List<ApiError> { new("StackTrace", exception.StackTrace ?? "No stack trace available") };
+
+
         var response = ApiResponses.Failure(
-            result.Message,
-            result.Errors,
+            finalMessage,
+            finalErrors,
             traceId,
             result.StatusCode);
 
@@ -79,17 +77,10 @@ public sealed class ExceptionHandlingMiddleware(
         await context.Response.WriteAsJsonAsync(response);
     }
 
-    /// <summary>
-    /// Maps an exception to an HTTP status code, a client-safe message and optional field errors.
-    /// More specific exception types must come before their base types.
-    /// </summary>
+    /// <summary>maps an exception to an HTTP status code, a client-safe message and optional field errors.</summary>
     private static ErrorResult MapException(Exception exception) => exception switch
     {
-        ValidationException e => new(
-            StatusCodes.Status400BadRequest,
-            e.Message,
-            [.. e.Errors.SelectMany(error => error.Value.Select(text => new ApiError(error.Key, text)))]),
-
+        ValidationException e => new(StatusCodes.Status400BadRequest, e.Message, [.. e.Errors.SelectMany(error => error.Value.Select(text => new ApiError(error.Key, text)))]),
         BadRequestException e => new(StatusCodes.Status400BadRequest, e.Message),
         NotFoundException e => new(StatusCodes.Status404NotFound, e.Message),
         UnauthorizedException e => new(StatusCodes.Status401Unauthorized, e.Message),
@@ -98,13 +89,15 @@ public sealed class ExceptionHandlingMiddleware(
         BusinessRuleException e => new(StatusCodes.Status422UnprocessableEntity, e.Message),
         RateLimitException e => new(StatusCodes.Status429TooManyRequests, e.Message),
         ServiceUnavailableException e => new(StatusCodes.Status503ServiceUnavailable, e.Message),
+
+        // in production, we might NOT want to expose raw InvalidOperationException messages 
         InvalidOperationException e => new(StatusCodes.Status500InternalServerError, e.Message),
 
-        // Malformed request bodies, oversized payloads and similar errors raised by ASP.NET Core itself.
+        // malformed request bodies, oversized payloads and similar errors raised by ASP.NET Core itself.
         BadHttpRequestException e => new(e.StatusCode, "The request is invalid."),
 
-        // Never expose internal exception details to clients.
-        _ => new(StatusCodes.Status500InternalServerError, InternalErrorMessage)
+        // Never expose internal exception details to clients for unhandled exceptions.
+        _ => new(StatusCodes.Status500InternalServerError, "An internal server error occurred. Please try again later.")
     };
 
     /// <summary>Returns the identifier shared by the log entry and the response so they can be correlated.</summary>
