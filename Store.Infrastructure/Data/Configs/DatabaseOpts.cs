@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Store.API.Configuration;
 
-public sealed class DatabaseOptions
+public sealed class DatabaseOpts
 {
     [Required]
     public string ConnectionString { get; set; } = string.Empty;

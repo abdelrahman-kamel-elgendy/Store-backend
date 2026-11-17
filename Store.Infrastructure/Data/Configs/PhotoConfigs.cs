@@ -4,7 +4,7 @@ using Store.Core.Entities;
 
 namespace Store.Infrastructure.Data.Config;
 
-public class PhotoConfigration : IEntityTypeConfiguration<Image>
+public class PhotoConfigs : IEntityTypeConfiguration<Image>
 {
     public void Configure(EntityTypeBuilder<Image> builder)
     {

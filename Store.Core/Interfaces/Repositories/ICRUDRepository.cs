@@ -2,7 +2,7 @@ namespace Store.Core.Interfaces.Repositories;
 
 /// <summary>Persistence operations for one entity type.</summary>
 /// <typeparam name="T">The entity type.</typeparam>
-public interface IGenericRepository<T> where T : class
+public interface ICRUDRepository<T> where T : class
 {
     /// <summary>Inserts an entity and saves it.</summary>
     /// <param name="entity">The entity to insert.</param>
@@ -16,9 +16,7 @@ public interface IGenericRepository<T> where T : class
     /// <param name="skip">Number of matching rows to skip.</param>
     /// <param name="take">Number of rows to return.</param>
     /// <param name="includeDeleted">When true, soft-deleted rows are included.</param>
-    /// <param name="search">Optional case-insensitive name filter.</param>
-    /// <param name="sort">Optional sort key.</param>
-    Task<IReadOnlyList<T>> GetPageAsync(int skip, int take, bool includeDeleted = false, string? search = null, string? sort = null);
+    Task<IReadOnlyList<T>> GetPageAsync(int skip, int take, bool includeDeleted = false);
 
     /// <summary>Finds an entity by id.</summary>
     /// <param name="entityId">Entity id.</param>
@@ -52,6 +50,5 @@ public interface IGenericRepository<T> where T : class
 
     /// <summary>Counts entities that match the filter.</summary>
     /// <param name="includeDeleted">When true, soft-deleted rows are counted.</param>
-    /// <param name="search">Optional case-insensitive name filter.</param>
-    Task<int> CountAsync(bool includeDeleted = false, string? search = null);
+    Task<int> CountAsync(bool includeDeleted = false);
 }

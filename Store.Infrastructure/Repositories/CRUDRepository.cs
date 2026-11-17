@@ -4,9 +4,9 @@ using Store.Core.Interfaces.Repositories;
 using Store.Infrastructure.Data;
 
 namespace Store.Infrastructure.Repositories;
-/// <summary>Implements generic persistence operations using Entity Framework Core.</summary>
+/// <summary>Implements CRUD persistence operations using Entity Framework Core.</summary>
 /// <typeparam name="T">The entity type tracked by this repository.</typeparam>
-public class GenericRepository<T>(AppDbContext context) : IGenericRepository<T> where T : class
+public class CRUDRepository<T>(AppDbContext context) : ICRUDRepository<T> where T : class
 {
     protected readonly AppDbContext _context = context;
     protected virtual string EntityName => typeof(T).Name;

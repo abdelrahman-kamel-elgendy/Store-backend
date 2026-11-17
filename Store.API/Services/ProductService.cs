@@ -1,13 +1,13 @@
 using AutoMapper;
 using Store.API.Exceptions;
-using Store.Core.DTO.Product;
+using Store.Core.DTOs.Product;
 using Store.Core.Entities;
 using Store.Core.Interfaces.Repositories;
-using Store.Core.Interfaces.Servics;
+using Store.Core.Interfaces.Services;
 
 namespace Store.API.Services;
 
-public class ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository, IImageRepository imageRepository, IMapper mapper) : GenericService<Product, ProductResponseDto, ProductRequestDto>(productRepository, mapper), IProductService
+public class ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository, IImageRepository imageRepository, IMapper mapper) : CRUDService<Product, ProductResponseDto, ProductRequestDto>(productRepository, mapper), IProductService
 {
     private readonly IProductRepository _productRepository = productRepository;
     private readonly ICategoryRepository _categoryRepository = categoryRepository;
@@ -18,6 +18,7 @@ public class ProductService(IProductRepository productRepository, ICategoryRepos
     {
         int categoryId = createProductRequest.CategoryId;
         string productName = createProductRequest.Name;
+        IFormFileCollection? images = createProductRequest.Images;
 
         // category validation
         if (!await _categoryRepository.ExistsByIdAsync(categoryId))
@@ -34,7 +35,8 @@ public class ProductService(IProductRepository productRepository, ICategoryRepos
         await _productRepository.AddAsync(product);
 
         // saving images
-        await _imageRepository.SaveImagesAsync(createProductRequest.Images, product.Id, productName);
+        if (images is not null)
+            await _imageRepository.SaveImagesAsync(images, product.Id, productName);
 
         // response mapping
         return _mapper.Map<ProductResponseDto>(product);
@@ -44,6 +46,7 @@ public class ProductService(IProductRepository productRepository, ICategoryRepos
     {
         int categoryId = updateProductRequest.CategoryId;
         string productName = updateProductRequest.Name;
+        IFormFileCollection? images = updateProductRequest.Images;
 
         // catgory validation
         if (!await _categoryRepository.ExistsByIdAsync(categoryId))
@@ -65,7 +68,8 @@ public class ProductService(IProductRepository productRepository, ICategoryRepos
         await _imageRepository.RemoveImagesAsync(id);
 
         // saving product new imags
-        await _imageRepository.SaveImagesAsync(updateProductRequest.Images, product.Id, productName);
+        if (images is not null)
+            await _imageRepository.SaveImagesAsync(images, product.Id, productName);
 
         // product updating
         await _productRepository.UpdateAsync(product);

@@ -4,7 +4,7 @@ using Store.Core.Entities;
 
 namespace Store.Infrastructure.Data.Config;
 
-public class CategoryConfigration : IEntityTypeConfiguration<Category>
+public class CategoryConfigs : IEntityTypeConfiguration<Category>
 {
     public void Configure(EntityTypeBuilder<Category> builder)
     {

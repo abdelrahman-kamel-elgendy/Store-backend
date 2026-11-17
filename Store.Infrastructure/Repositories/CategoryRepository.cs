@@ -5,7 +5,7 @@ using Store.Infrastructure.Data;
 
 namespace Store.Infrastructure.Repositories;
 
-public class CategoryRepository(AppDbContext context) : GenericRepository<Category>(context), ICategoryRepository
+public class CategoryRepository(AppDbContext context) : CRUDRepository<Category>(context), ICategoryRepository
 {
     public override async Task DeleteAsync(int categoryId)
     {

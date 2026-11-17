@@ -7,7 +7,7 @@ using Store.Infrastructure.Data;
 
 namespace Store.Infrastructure.Repositories;
 
-public class ProductRepository(AppDbContext context) : GenericRepository<Product>(context), IProductRepository
+public class ProductRepository(AppDbContext context) : CRUDRepository<Product>(context), IProductRepository
 {
 
     public override async Task<IReadOnlyList<Product>> GetPageAsync(int skip, int take, bool includeDeleted = false)

@@ -4,7 +4,7 @@ using Store.Core.Entities;
 
 namespace Store.Infrastructure.Data.Config;
 
-public class ProductConfigration : IEntityTypeConfiguration<Product>
+public class ProductConfigs : IEntityTypeConfiguration<Product>
 {
     public void Configure(EntityTypeBuilder<Product> builder)
     {

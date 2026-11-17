@@ -10,14 +10,14 @@ public class ImageManagmentService(IFileProvider fileProvider) : IImageManagemen
 
 
 
-    public async Task<List<string>> AddImageAsync(IFormFileCollection files, string src)
+    public async Task<List<string>> AddImageAsync(IFormFileCollection images, string src)
     {
         var savedImages = new List<string>();
         var imageDirectory = Path.Combine("wwwroot", "Images", src);
 
         Directory.CreateDirectory(imageDirectory);
 
-        foreach (var file in files)
+        foreach (var file in images)
         {
             if (file.Length <= 0)
                 continue;
@@ -33,6 +33,5 @@ public class ImageManagmentService(IFileProvider fileProvider) : IImageManagemen
     }
 
 
-    public async Task DeleteImageAsync(string src) => await Task.Run(() =>
-            File.Delete(fileProvider.GetFileInfo(src).PhysicalPath ?? throw new NotFoundException($"File in src {src} not found.")));
+    public async Task DeleteImageAsync(string src) => await Task.Run(() => File.Delete(fileProvider.GetFileInfo(src).PhysicalPath ?? throw new NotFoundException($"File in src {src} not found.")));
 }

@@ -1,9 +1,7 @@
 using Microsoft.Extensions.FileProviders;
 using Store.API.Services;
 using Store.Core.Interfaces.Repositories;
-using Store.Core.Interfaces.Servics;
 using Store.Core.Interfaces.Services;
-using Store.Infrastructure.Data.Seeding;
 using Store.Infrastructure.Repositories;
 
 namespace Store.API.Extensions;
@@ -21,7 +19,6 @@ public static class DependencyInjectionExtensions
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IImageRepository, ImageRepository>();
-        services.AddScoped<DbSeeder>();
         return services;
     }
 

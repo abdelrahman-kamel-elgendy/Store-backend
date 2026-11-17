@@ -1,6 +1,6 @@
 using AutoMapper;
-using Store.Core.DTO.Image;
-using Store.Core.DTO.Product;
+using Store.Core.DTOs.Image;
+using Store.Core.DTOs.Product;
 using Store.Core.Entities;
 
 namespace Store.API.Mapping;
@@ -23,6 +23,6 @@ public class ProductMapping : Profile
             .ForMember(dest => dest.Images, opt => opt.Ignore());
 
         // Image -> ImageResponsDto (Id, Url, ProductId, IsMain match by name)
-        CreateMap<Image, ImageResponsDto>();
+        CreateMap<Image, ImageResponseDto>();
     }
 }

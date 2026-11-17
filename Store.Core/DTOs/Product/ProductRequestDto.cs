@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using Store.Core.Common;
 using Store.Core.Validation;
 
@@ -31,4 +32,4 @@ public record ProductRequestDto(
     [property: Range(1, int.MaxValue, ErrorMessage = "Category id must be greater than zero.")]
     int CategoryId,
 
-    IReadOnlyList<UploadedFile>? Images = null);
+    IFormFileCollection? Images);

@@ -8,16 +8,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddDatabase(builder.Configuration, builder.Environment)
     .AddApiControllers()
-    .AddSwaggerDocs()
     .AddMapping()
     .AddRepositories()
     .AddApplicationServices();
 
 var app = builder.Build();
 
-await app.SeedDatabaseIfEnabledAsync();
+if (await app.RunSeedingIfRequestedAsync(args))
+    return;
 
-app.UseSwaggerDocs();
 app.UseApiErrorHandling();
 app.UseHttpsRedirection();
 app.UseAuthorization();

@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Store.API.DTO;
 using Store.API.Helper;
-using Store.Core.DTO;
-using Store.Core.Interfaces.Servics;
+using Store.Core.DTOs;
+using Store.Core.Interfaces.Services;
 
 namespace Store.API.Controllers;
 
@@ -13,7 +12,7 @@ namespace Store.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public abstract class BaseController<TEntity, TResponse, TRequest>(IGenericService<TResponse, TRequest> service) : ControllerBase where TResponse : IIdentifiableDto
+public abstract class CRUDController<TEntity, TResponse, TRequest>(ICRUDService<TResponse, TRequest> service) : ControllerBase where TResponse : IIdentifiableDto
 {
     protected virtual string ResourceName => typeof(TEntity).Name;
     protected virtual string ResourceCollectionName => $"{ResourceName}s";
@@ -39,9 +38,7 @@ public abstract class BaseController<TEntity, TResponse, TRequest>(IGenericServi
     /// <response code="200">The collection was retrieved successfully (may be empty).</response>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public virtual async Task<ActionResult<ApiResponse<IReadOnlyList<TResponse>>>> Get(
-        [FromQuery] PaginationQuery pagination,
-        [FromQuery] bool includeDeleted = false)
+    public virtual async Task<ActionResult<ApiResponse<IReadOnlyList<TResponse>>>> Get([FromQuery] PaginationQuery pagination, [FromQuery] bool includeDeleted = false)
     {
         var result = await service.GetAllAsync(pagination.Page, pagination.PageSize, includeDeleted);
         var metadata = new ApiMetadata(Pagination: PaginationMetadata.Create(result.Page, result.PageSize, result.TotalItems));

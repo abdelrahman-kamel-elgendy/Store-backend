@@ -1,9 +1,10 @@
 using AutoMapper;
 using Store.API.Exceptions;
-using Store.Core.DTO;
+using Store.Core.Common;
+using Store.Core.DTOs;
 using Store.Core.Entities;
 using Store.Core.Interfaces.Repositories;
-using Store.Core.Interfaces.Servics;
+using Store.Core.Interfaces.Services;
 
 namespace Store.API.Services;
 
@@ -11,7 +12,7 @@ namespace Store.API.Services;
 /// <typeparam name="TEntity">The persisted entity type.</typeparam>
 /// <typeparam name="TResponse">The response DTO returned to API callers.</typeparam>
 /// <typeparam name="TRequest">The request DTO.</typeparam>
-public class GenericService<TEntity, TResponse, TRequest>(IGenericRepository<TEntity> repository, IMapper mapper) : IGenericService<TResponse, TRequest>
+public class CRUDService<TEntity, TResponse, TRequest>(ICRUDRepository<TEntity> repository, IMapper mapper) : ICRUDService<TResponse, TRequest>
     where TEntity : BaseEntity<int>
 {
     protected virtual string EntityName => typeof(TEntity).Name; // gets the entity name used in not-found messages.
@@ -73,5 +74,4 @@ public class GenericService<TEntity, TResponse, TRequest>(IGenericRepository<TEn
 
         return mapper.Map<TResponse>(restoredEntity);
     }
-
 }
