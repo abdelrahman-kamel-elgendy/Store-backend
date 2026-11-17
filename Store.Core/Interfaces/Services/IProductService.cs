@@ -1,7 +1,6 @@
-using Store.Core.DTO.Product;
+using Store.Core.DTOs.Product;
 
-namespace Store.Core.Interfaces.Servics;
+namespace Store.Core.Interfaces.Services;
 
-public interface IProductService : IGenericService<ProductResponseDto, ProductRequestDto>
-{
-}
+/// <summary>Product use cases.</summary>
+public interface IProductService : IGenericService<ProductResponseDto, ProductRequestDto>;

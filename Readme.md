@@ -77,48 +77,62 @@ All collection and single-resource `GET` endpoints accept the optional `includeD
 
 ```text
 Store-backend/
+├── .gitignore
 ├── .env.example
 ├── README.md
 ├── Store.slnx
-├── Store.API/
-│   ├── Configuration/
-│   │   ├── DatabaseOptions.cs
-│   │   └── SeedDatabaseOptions.cs
-│   ├── Controllers/
-│   │   ├── BaseController.cs
-│   │   ├── CategoryController.cs
-│   │   └── ProductController.cs
-│   ├── DTO/PaginationQuery.cs
-│   ├── Exceptions/ApiExceptions.cs.cs
-│   ├── Helper/ApiResponse.cs
-│   ├── Mapping/
-│   ├── MiddleWare/ExceptionHandlingMiddleware.cs
-│   ├── Properties/launchSettings.json
-│   ├── Services/
-│   ├── wwwroot/Images/
-│   ├── Program.cs
-│   ├── appsettings.json
-│   └── appsettings.Development.json
-├── Store.Core/
-│   ├── DTO/
-│   │   ├── Category/
-│   │   ├── Image/
-│   │   └── Product/
-│   ├── Entities/
-│   ├── Interfaces/
-│   │   ├── Entities/
-│   │   ├── Repositories/
-│   │   └── Services/
-│   ├── Validation/ValidationRules.cs
-│   └── Store.Core.csproj
-└── Store.Infrastructure/
-    ├── Data/
-    │   ├── Config/
-    │   ├── Migrations/
-    │   ├── Seeding/DbSeeder.cs
-    │   └── AppDbContext.cs
-    ├── Repositories/
-    └── Store.Infrastructure.csproj
+└── src/
+    ├── Store.API/
+    │   ├── Extensions/
+    │   │   ├── DatabaseExtensions.cs
+    │   │   ├── ApiExtensions.cs
+    │   │   ├── SwaggerExtensions.cs
+    │   │   ├── DependencyInjectionExtensions.cs
+    │   │   └── WebApplicationExtensions.cs
+    │   ├── Controllers/
+    │   │   ├── BaseController.cs
+    │   │   ├── CategoryController.cs
+    │   │   └── ProductController.cs
+    │   ├── DTO
+    │   │   └── PaginationQuery.cs
+    │   ├── Exceptions
+    │   │   └── ApiExceptions.cs.cs
+    │   ├── Helper
+    │   │   └── ApiResponse.cs
+    │   ├── Mapping/
+    │   ├── MiddleWare
+    │   │   └── ExceptionHandlingMiddleware.cs
+    │   ├── Properties
+    │   │   └── launchSettings.json
+    │   ├── Services/
+    │   ├── wwwroot
+    │   ├── Program.cs
+    │   ├── appsettings.json
+    │   └── appsettings.Development.json
+    ├── Store.Core/
+    │   ├── DTO/
+    │   │   ├── Category/
+    │   │   ├── Image/
+    │   │   └── Product/
+    │   ├── Entities/
+    │   ├── Interfaces/
+    │   │   ├── Entities/
+    │   │   ├── Repositories/
+    │   │   └── Services/
+    │   ├── Validation
+    │   │   └── ValidationRules.cs
+    │   └── Store.Core.csproj
+    └── Store.Infrastructure/
+        ├── Data/
+        │   ├── Config/    
+        │   │   ├── DatabaseOptions.cs
+        │   │   └── SeedDatabaseOptions.cs
+        │   ├── Migrations/
+        │   ├── Seeding
+        │   │   └── DbSeeder.cs
+        │   └── AppDbContext.cs
+        ├── Repositories/
+        └── Store.Infrastructure.csproj
 ```
 
 Notable implementation files:

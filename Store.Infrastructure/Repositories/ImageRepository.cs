@@ -15,7 +15,7 @@ public class ImageRepository(AppDbContext context, IImageManagementService image
 
     public async Task SaveImagesAsync(IFormFileCollection images, int entityId, string entityName)
     {
-        var imagePaths = await _imageManagementService.AddImageAsync(images, entityName);
+        var imagePaths = await _imageManagementService.AddImagesAsync(images, entityName);
         var image = imagePaths.Select(path => new Image { Url = path, ProductId = entityId, }).ToList();
 
         await _context.Images.AddRangeAsync(image);

@@ -12,7 +12,7 @@ public class GenericRepository<T>(AppDbContext context) : IGenericRepository<T> 
     protected virtual string EntityName => typeof(T).Name;
     protected static bool IsSoftDeletableType => typeof(ISoftDeletable).IsAssignableFrom(typeof(T));
 
-    async Task IGenericRepository<T>.AddAsync(T entity)
+    public async Task AddAsync(T entity)
     {
         await _context.Set<T>().AddAsync(entity);
         if (entity is IAuditable auditable)

@@ -1,8 +1,6 @@
-using Store.Core.DTO;
-using Store.Core.DTO.Category;
+using Store.Core.DTOs.Category;
 
-namespace Store.Core.Interfaces.Servics;
+namespace Store.Core.Interfaces.Services;
 
-public interface ICategoryService : IGenericService<CategoryResponseDto, CategoryRequestDto>
-{
-}
+/// <summary>Category use cases, including nested category trees.</summary>
+public interface ICategoryService : IGenericService<CategoryResponseDto, CategoryRequestDto>;

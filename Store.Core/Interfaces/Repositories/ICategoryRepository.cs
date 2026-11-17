@@ -1,9 +1,6 @@
 using Store.Core.Entities;
 
-
 namespace Store.Core.Interfaces.Repositories;
 
-public interface ICategoryRepository : IGenericRepository<Category>
-{
-    
-}
+/// <summary>Category persistence, including hierarchy delete and restore.</summary>
+public interface ICategoryRepository : IGenericRepository<Category>;
