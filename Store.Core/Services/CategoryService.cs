@@ -73,26 +73,26 @@ public class CategoryService(ICategoryRepository categoryRepository, IMapper map
             if (!await categoryRepository.ExistsByIdAsync(parentCategoryId.Value))
                 throw new NotFoundException($"Parent Category with ID '{parentCategoryId}' was not found.");
 
-        var category = await categoryRepository.GetByNameAsync(categoryName);
+        var category = await categoryRepository.GetByNameAsync(categoryName) ?? throw new NotFoundException($"Parent Category with ID '{parentCategoryId}' was not found.");
 
-        if (category is not null)
-        {
-            if (!category.IsDeleted && category.Id != id)
-                throw new ConflictException($"Category with name {categoryName} already exists.");
+        if (!category.IsDeleted && category.Id != id)
+            throw new ConflictException($"Category with name {categoryName} already exists.");
 
-            if (category.Id == parentCategoryId)
-                throw new BadRequestException($"The category cannot be its own parent.");
-        }
+        if (category.Id == parentCategoryId)
+            throw new BadRequestException($"The category cannot be its own parent.");
+
         return await base.UpdateAsync(id, request);
     }
 
     public override async Task<CategoryResponseDto> RestoreAsync(int id)
     {
-        await categoryRepository.RestoreAsync(id);   // restores the category and its descendants
+        var category = await categoryRepository.GetByIdAsync(id, true) ?? throw new NotFoundException($"Category with ID {id} was not found.");
+        if (!category.IsDeleted)
+            throw new BadRequestException($"{EntityName} with ID {id} was not deleted.");
 
-        // Reload after restoring so the lookup reflects the new state.
-        var categories = await categoryRepository.GetAllAsync();   // live (non-deleted) categories
-        var category = categories.FirstOrDefault(c => c.Id == id) ?? throw new NotFoundException($"{EntityName} with ID {id} was not found.");
+        await categoryRepository.RestoreAsync(id);
+
+        var categories = await categoryRepository.GetAllAsync();
 
         var byParent = categories.ToLookup(c => c.ParentCategoryId);
         return BuildCategoryTree(category, byParent, []);

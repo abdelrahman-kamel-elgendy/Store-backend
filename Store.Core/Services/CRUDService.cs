@@ -50,7 +50,7 @@ public class CRUDService<TEntity, TResponse, TRequest>(ICRUDRepository<TEntity> 
 
     public virtual async Task<TResponse> UpdateAsync(int id, TRequest request)
     {
-        var entity = await repository.GetByIdAsync(id) ?? throw new NotFoundException($"{EntityName} with ID {id} was not found.");
+        var entity = await repository.GetByIdAsync(id, true) ?? throw new NotFoundException($"{EntityName} with ID {id} was not found.");
 
         mapper.Map(request, entity);
 
@@ -61,14 +61,19 @@ public class CRUDService<TEntity, TResponse, TRequest>(ICRUDRepository<TEntity> 
 
     public virtual async Task DeleteAsync(int id)
     {
-        if (!await repository.ExistsByIdAsync(id))
-            throw new NotFoundException($"{EntityName} with ID {id} was not found.");
+        var entity = await repository.GetByIdAsync(id, true) ?? throw new NotFoundException($"{EntityName} with ID {id} was not found.");
+        if (entity.IsDeleted)
+            throw new BadRequestException($"{EntityName} with ID {id} was deleted.");
 
         await repository.DeleteAsync(id);
     }
 
     public virtual async Task<TResponse> RestoreAsync(int id)
     {
+        var entity = await repository.GetByIdAsync(id, true) ?? throw new NotFoundException($"{EntityName} with ID {id} was not found.");
+        if (!entity.IsDeleted)
+            throw new BadRequestException($"{EntityName} with ID {id} was not deleted.");
+
         var restoredEntity = await repository.RestoreAsync(id);
 
         return mapper.Map<TResponse>(restoredEntity);

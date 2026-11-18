@@ -1,3 +1,4 @@
+using Store.API.DTO;
 using Store.API.Helper;
 using Store.Core.Exceptions;
 
@@ -15,16 +16,13 @@ public sealed class ApiResponseBuilder(IWebHostEnvironment environment) : IApiRe
             if (environment.IsDevelopment())
             {
                 message = $"[DEV] {exception.Message}";
-                errors = new List<ApiError> { new("StackTrace", exception.StackTrace ?? "No stack trace available") };
+                errors = new List<FieldValidationError> { new("StackTrace", exception.StackTrace ?? "No stack trace available") };
             }
             else if (environment.IsStaging())
-            {
                 message = $"[STAGING] {exception.Message}";
-            }
+
             else
-            {
                 message = "An internal server error occurred. Please try again later.";
-            }
         }
 
         return ApiResponses.Failure(message, errors, traceId, statusCode);
@@ -36,9 +34,9 @@ public sealed class ApiResponseBuilder(IWebHostEnvironment environment) : IApiRe
     public ApiResponse<object> BuildStatusCodeResponse(int statusCode, string traceId)
         => ApiResponses.FailureForStatusCode(statusCode, traceId);
 
-    private static (int StatusCode, string Message, IReadOnlyList<ApiError>? Errors) MapException(Exception exception) => exception switch
+    private static (int StatusCode, string Message, IReadOnlyList<FieldValidationError>? Errors) MapException(Exception exception) => exception switch
     {
-        ValidationsException e => (StatusCodes.Status400BadRequest, e.Message, e.Errors.SelectMany(x => x.Value.Select(t => new ApiError(x.Key, t))).ToList()),
+        ValidationsException e => (StatusCodes.Status400BadRequest, e.Message, e.Errors.SelectMany(x => x.Value.Select(t => new FieldValidationError(x.Key, t))).ToList()),
         BadRequestException e => (StatusCodes.Status400BadRequest, e.Message, null),
         NotFoundException e => (StatusCodes.Status404NotFound, e.Message, null),
         UnauthorizedException e => (StatusCodes.Status401Unauthorized, e.Message, null),

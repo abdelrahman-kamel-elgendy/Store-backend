@@ -18,7 +18,8 @@ public sealed class ExceptionHandlingMiddleware(
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
             logger.LogDebug("Request was canceled by the client. TraceId: {TraceId}", GetTraceId(context));
-            if (!context.Response.HasStarted) context.Response.StatusCode = 499;
+            if (!context.Response.HasStarted)
+                context.Response.StatusCode = 499;
         }
         catch (Exception exception)
         {

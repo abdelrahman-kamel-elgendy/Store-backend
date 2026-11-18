@@ -2,6 +2,7 @@ using Microsoft.Extensions.FileProviders;
 using Store.API.Services;
 using Store.Core.Interfaces.Repositories;
 using Store.Core.Interfaces.Services;
+using Store.Core.Mapping;
 using Store.Infrastructure.Repositories;
 using Store.Service.Services;
 
@@ -11,7 +12,7 @@ public static class DependencyInjectionExtensions
 {
     public static IServiceCollection AddMapping(this IServiceCollection services)
     {
-        services.AddAutoMapper(cfg => { }, AppDomain.CurrentDomain.GetAssemblies());
+        services.AddAutoMapper(cfg => { }, typeof(CategoryMapping).Assembly);
         return services;
     }
 
