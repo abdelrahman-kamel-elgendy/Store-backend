@@ -1,8 +1,9 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.FileProviders;
-using Store.API.Exceptions;
+using Store.Core.Exceptions;
 using Store.Core.Interfaces.Services;
 
-namespace Store.API.Services;
+namespace Store.Service.Services;
 
 public class ImageManagmentService(IFileProvider fileProvider) : IImageManagementService
 {

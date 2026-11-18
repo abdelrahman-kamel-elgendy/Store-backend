@@ -1,21 +1,21 @@
-using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using Store.API.Helper;
+using Store.API.Services;
+using Microsoft.AspNetCore.Http;
 
-namespace Store.API.MiddleWare;
+namespace Store.API.MiddleWares.Security;
 
-/// <summary>
-/// Middleware to append standard security headers to every HTTP response 
-/// and enforce IP-based rate limiting.
-/// Values are configurable via the .env file / environment variables.
-/// </summary>
-public sealed class SecurityHandlingMiddleware(RequestDelegate next, IMemoryCache memoryCache, IConfiguration configuration)
+public sealed class SecurityHandlingMiddleware(
+    RequestDelegate next,
+    IMemoryCache memoryCache,
+    IConfiguration configuration,
+    IApiResponseBuilder responseBuilder) // Inject Builder
 {
     private readonly RequestDelegate _next = next;
     private readonly IMemoryCache _memoryCache = memoryCache;
     private readonly IConfiguration _configuration = configuration;
+    private readonly IApiResponseBuilder _responseBuilder = responseBuilder;
 
-    // Load rate limit settings from .env or use defaults
     private readonly int _rateLimitMaxRequests = configuration.GetValue<int>("RATE_LIMIT_MAX_REQUESTS", 100);
     private readonly TimeSpan _rateLimitWindow = TimeSpan.FromSeconds(configuration.GetValue<int>("RATE_LIMIT_WINDOW_SECONDS", 60));
 
@@ -28,8 +28,7 @@ public sealed class SecurityHandlingMiddleware(RequestDelegate next, IMemoryCach
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
             context.Response.ContentType = "application/json";
 
-            var response = ApiResponses.Failure("Too many requests. Please try again later.", null, context.TraceIdentifier, StatusCodes.Status429TooManyRequests);
-
+            var response = _responseBuilder.BuildStatusCodeResponse(StatusCodes.Status429TooManyRequests, context.TraceIdentifier);
             await context.Response.WriteAsJsonAsync(response);
             return;
         }
@@ -39,36 +38,29 @@ public sealed class SecurityHandlingMiddleware(RequestDelegate next, IMemoryCach
 
     private bool IsRequestAllowed(HttpContext context)
     {
-        // Safely get IP (fallback to loopback for local dev if null)
         var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var cacheKey = $"RateLimit:{ip}";
         var now = DateTime.UtcNow;
 
         if (!_memoryCache.TryGetValue(cacheKey, out RateLimitCounter? counter))
         {
-            counter = new RateLimitCounter
-            {
-                Timestamp = now,
-                Count = 1
-            };
-            _memoryCache.Set(cacheKey, counter, _rateLimitWindow);
+            _memoryCache.Set(cacheKey, new RateLimitCounter { Timestamp = now, Count = 1 }, _rateLimitWindow);
             return true;
         }
 
-        if (counter == null)
-            return true;
+        if (counter == null) return true;
 
         if (now - counter.Timestamp >= _rateLimitWindow)
         {
             counter.Timestamp = now;
             counter.Count = 1;
-            _memoryCache.Set(cacheKey, counter, _rateLimitWindow);
-            return true;
+        }
+        else
+        {
+            counter.Count++;
         }
 
-        counter.Count++;
         _memoryCache.Set(cacheKey, counter, _rateLimitWindow);
-
         return counter.Count <= _rateLimitMaxRequests;
     }
 
@@ -81,7 +73,6 @@ public sealed class SecurityHandlingMiddleware(RequestDelegate next, IMemoryCach
 
         if (context.Request.IsHttps)
             context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
-
 
         var csp = _configuration["SECURITY_CSP"];
         if (!string.IsNullOrWhiteSpace(csp))

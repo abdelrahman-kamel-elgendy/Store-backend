@@ -1,14 +1,15 @@
 using AutoMapper;
-using Store.API.Exceptions;
 using Store.Core.DTOs;
 using Store.Core.DTOs.Category;
 using Store.Core.Entities;
+using Store.Core.Exceptions;
 using Store.Core.Interfaces.Repositories;
 using Store.Core.Interfaces.Services;
 
-namespace Store.API.Services;
+namespace Store.Service.Services;
 
-public class CategoryService(ICategoryRepository categoryRepository, IMapper mapper) : CRUDService<Category, CategoryResponseDto, CategoryRequestDto>(categoryRepository, mapper), ICategoryService
+public class CategoryService(ICategoryRepository categoryRepository, IMapper mapper)
+    : CRUDService<Category, CategoryResponseDto, CategoryRequestDto>(categoryRepository, mapper), ICategoryService
 {
     public override async Task<CategoryResponseDto> CreateAsync(CategoryRequestDto request)
     {

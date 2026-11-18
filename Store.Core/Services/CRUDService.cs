@@ -1,19 +1,18 @@
 using AutoMapper;
-using Store.API.Exceptions;
-using Store.Core.Common;
 using Store.Core.DTOs;
 using Store.Core.Entities;
+using Store.Core.Exceptions;
 using Store.Core.Interfaces.Repositories;
 using Store.Core.Interfaces.Services;
 
-namespace Store.API.Services;
+namespace Store.Service.Services;
 
 /// <summary>Implements the shared CRUD workflow for a mapped entity and its API DTOs.</summary>
 /// <typeparam name="TEntity">The persisted entity type.</typeparam>
 /// <typeparam name="TResponse">The response DTO returned to API callers.</typeparam>
 /// <typeparam name="TRequest">The request DTO.</typeparam>
-public class CRUDService<TEntity, TResponse, TRequest>(ICRUDRepository<TEntity> repository, IMapper mapper) : ICRUDService<TResponse, TRequest>
-    where TEntity : BaseEntity<int>
+public class CRUDService<TEntity, TResponse, TRequest>(ICRUDRepository<TEntity> repository, IMapper mapper)
+    : ICRUDService<TResponse, TRequest> where TEntity : BaseEntity<int>
 {
     protected virtual string EntityName => typeof(TEntity).Name; // gets the entity name used in not-found messages.
 

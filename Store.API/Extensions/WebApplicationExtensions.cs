@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Store.API.Configuration;
 using Store.API.Helper;
-using Store.API.MiddleWare;
+using Store.API.MiddleWares.Errors;
+using Store.API.MiddleWares.Security;
 using Store.Infrastructure.Data;
 using Store.Infrastructure.Data.Seed;
 

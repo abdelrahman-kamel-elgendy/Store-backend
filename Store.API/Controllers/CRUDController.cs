@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Store.API.Helper;
+using Store.API.Services;
 using Store.Core.DTOs;
 using Store.Core.Interfaces.Services;
 
@@ -12,7 +13,8 @@ namespace Store.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public abstract class CRUDController<TEntity, TResponse, TRequest>(ICRUDService<TResponse, TRequest> service) : ControllerBase where TResponse : IIdentifiableDto
+public abstract class CRUDController<TEntity, TResponse, TRequest>(ICRUDService<TResponse, TRequest> service, IApiResponseBuilder responseBuilder)
+    : ControllerBase where TResponse : IIdentifiableDto
 {
     protected virtual string ResourceName => typeof(TEntity).Name;
     protected virtual string ResourceCollectionName => $"{ResourceName}s";
@@ -28,7 +30,8 @@ public abstract class CRUDController<TEntity, TResponse, TRequest>(ICRUDService<
     public virtual async Task<ActionResult<ApiResponse<TResponse>>> Create([FromBody] TRequest request)
     {
         var response = await service.CreateAsync(request);
-        return CreatedAtAction(nameof(GetById), new { id = response.Id }, ApiResponses.Success(response, $"{ResourceName} created successfully."));
+        var successResponse = responseBuilder.BuildSuccessResponse(response, $"{ResourceName} created successfully.");
+        return CreatedAtAction(nameof(GetById), new { id = response.Id }, successResponse);
     }
 
     /// <summary>Retrieves a paginated list of resources.</summary>
@@ -42,9 +45,8 @@ public abstract class CRUDController<TEntity, TResponse, TRequest>(ICRUDService<
     {
         var result = await service.GetAllAsync(pagination.Page, pagination.PageSize, includeDeleted);
         var metadata = new ApiMetadata(Pagination: PaginationMetadata.Create(result.Page, result.PageSize, result.TotalItems));
-        var message = result.TotalItems == 0 ? $"No {ResourceCollectionName} were found." : $"{char.ToUpperInvariant(ResourceCollectionName[0])}{ResourceCollectionName[1..]} retrieved successfully.";
-
-        return Ok(ApiResponses.Success(result.Items, message, metadata));
+        var message = result.TotalItems == 0 ? $"No {ResourceCollectionName} were found." : $"{ResourceCollectionName} retrieved successfully.";
+        return Ok(responseBuilder.BuildSuccessResponse(result.Items, message, metadata));
     }
 
     /// <summary>Retrieves a single resource by its identifier.</summary>
@@ -56,12 +58,10 @@ public abstract class CRUDController<TEntity, TResponse, TRequest>(ICRUDService<
     [HttpGet("{id:int}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public virtual async Task<ActionResult<ApiResponse<TResponse>>> GetById(
-        int id,
-        [FromQuery] bool includeDeleted = false)
+    public virtual async Task<ActionResult<ApiResponse<TResponse>>> GetById(int id, [FromQuery] bool includeDeleted = false)
     {
         var response = await service.GetByIdAsync(id, includeDeleted);
-        return Ok(ApiResponses.Success(response, $"{ResourceName} with ID {id} retrieved successfully."));
+        return Ok(responseBuilder.BuildSuccessResponse(response, $"{ResourceName} with ID {id} retrieved."));
     }
 
     /// <summary>Updates an existing resource.</summary>
@@ -78,7 +78,7 @@ public abstract class CRUDController<TEntity, TResponse, TRequest>(ICRUDService<
     public virtual async Task<ActionResult<ApiResponse<TResponse>>> Update(int id, [FromBody] TRequest request)
     {
         var response = await service.UpdateAsync(id, request);
-        return Ok(ApiResponses.Success(response, $"{ResourceName} updated successfully."));
+        return Ok(responseBuilder.BuildSuccessResponse(response, $"{ResourceName} updated successfully."));
     }
 
     /// <summary>Soft-deletes a resource.</summary>
@@ -106,6 +106,6 @@ public abstract class CRUDController<TEntity, TResponse, TRequest>(ICRUDService<
     public virtual async Task<ActionResult<ApiResponse<TResponse>>> Restore(int id)
     {
         var response = await service.RestoreAsync(id);
-        return Ok(ApiResponses.Success(response, $"{ResourceName} with ID {id} restored successfully."));
+        return Ok(responseBuilder.BuildSuccessResponse(response, $"{ResourceName} restored successfully."));
     }
 }

@@ -1,14 +1,16 @@
 using AutoMapper;
-using Store.API.Exceptions;
+using Microsoft.AspNetCore.Http;
 using Store.Core.DTOs;
 using Store.Core.DTOs.Product;
 using Store.Core.Entities;
+using Store.Core.Exceptions;
 using Store.Core.Interfaces.Repositories;
 using Store.Core.Interfaces.Services;
 
-namespace Store.API.Services;
+namespace Store.Service.Services;
 
-public class ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository, IImageRepository imageRepository, IMapper mapper) : CRUDService<Product, ProductResponseDto, ProductRequestDto>(productRepository, mapper), IProductService
+public class ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository, IImageRepository imageRepository, IMapper mapper)
+    : CRUDService<Product, ProductResponseDto, ProductRequestDto>(productRepository, mapper), IProductService
 {
     private readonly IProductRepository _productRepository = productRepository;
     private readonly ICategoryRepository _categoryRepository = categoryRepository;

@@ -1,4 +1,4 @@
-namespace Store.API.Helper;
+namespace Store.API.MiddleWares.Security;
 
 public sealed class RateLimitCounter
 {
