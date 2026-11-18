@@ -25,6 +25,7 @@ if (await app.RunSeedingIfRequestedAsync(args))
     return;
 
 // configure Pipeline
+app.UseSecurityHeaders();
 app.UseApiErrorHandling();
 app.UseHttpsRedirection();
 app.UseAuthorization();

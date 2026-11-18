@@ -28,6 +28,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IProductService, ProductService>();
         services.AddSingleton<IImageManagementService, ImageManagmentService>();
         services.AddSingleton<IFileProvider>(new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")));
+        services.AddMemoryCache();
         return services;
     }
 }

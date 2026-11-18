@@ -13,7 +13,7 @@ namespace Store.API.Extensions;
 /// </summary>
 public static class WebApplicationExtensions
 {
-    //  middleware
+    //  middlewares
     public static WebApplication UseApiErrorHandling(this WebApplication app)
     {
         // catches exceptions thrown anywhere further down the pipeline.
@@ -26,6 +26,12 @@ public static class WebApplicationExtensions
             await http.Response.WriteAsJsonAsync(ApiResponses.FailureForStatusCode(http.Response.StatusCode, http.TraceIdentifier));
         });
 
+        return app;
+    }
+
+    public static WebApplication UseSecurityHeaders(this WebApplication app)
+    {
+        app.UseMiddleware<SecurityHandlingMiddleware>();
         return app;
     }
 
