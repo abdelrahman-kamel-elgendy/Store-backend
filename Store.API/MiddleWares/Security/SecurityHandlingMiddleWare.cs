@@ -55,7 +55,8 @@ public sealed class SecurityHandlingMiddleware(RequestDelegate next, IMemoryCach
             return true;
         }
 
-        if (counter == null) return true;
+        if (counter == null)
+            return true;
 
         if (now - counter.Timestamp >= _rateLimitWindow)
         {
@@ -79,14 +80,11 @@ public sealed class SecurityHandlingMiddleware(RequestDelegate next, IMemoryCach
         context.Response.Headers["Referrer-Policy"] = _configuration["SECURITY_REFERRER_POLICY"] ?? "strict-origin-when-cross-origin";
 
         if (context.Request.IsHttps)
-        {
             context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
-        }
+
 
         var csp = _configuration["SECURITY_CSP"];
         if (!string.IsNullOrWhiteSpace(csp))
-        {
             context.Response.Headers["Content-Security-Policy"] = csp;
-        }
     }
 }
