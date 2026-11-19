@@ -19,6 +19,7 @@ public class ProductMapping : Profile
             .ForCtorParam(nameof(ProductResponseDto.ImageUrls),
                 opt => opt.MapFrom(src => src.Images));
 
-        CreateMap<ProductRequestDto, Product>();
+        CreateMap<ProductRequestDto, Product>()
+            .ForMember(src => src.Images, opt => opt.Ignore()); ;
     }
 }

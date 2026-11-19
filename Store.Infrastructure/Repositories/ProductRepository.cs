@@ -1,57 +1,48 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Store.Core.DTOs.Product;
 using Store.Core.Entities;
+using Store.Core.Interfaces.Entities;
 using Store.Core.Interfaces.Repositories;
 using Store.Core.Interfaces.Services;
 using Store.Infrastructure.Data;
 
 namespace Store.Infrastructure.Repositories;
 
-public class ProductRepository(AppDbContext context) : CRUDRepository<Product>(context), IProductRepository
+public class ProductRepository(AppDbContext context)
+    : BaseRepository<Product, ProductFilter>(context), IProductRepository
 {
-
-    public async Task<IReadOnlyList<Product>> GetPageAsync(int? categoryId, int skip, int take, bool includeDeleted = false)
+    protected override IQueryable<Product> ApplyFilter(IQueryable<Product> query, ProductFilter filter)
     {
-        var query = _context.Products.AsNoTracking();
+        if (filter.CategoryId.HasValue)
+            query = query.Where(p => p.CategoryId == filter.CategoryId.Value);
 
-        if (includeDeleted)
-            query = query.IgnoreQueryFilters();
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var term = filter.Search.Trim();
+            query = query.Where(p => p.Name.Contains(term) || p.Description.Contains(term));
+        }
 
-        if (categoryId.HasValue)
-            query = query.Where(product => product.CategoryId == categoryId.Value);
+        if (filter.MinPrice.HasValue)
+            query = query.Where(p => p.NewPrice >= filter.MinPrice.Value);
 
-        return await query
-            .Include(product => product.Category)
-            .Include(product => product.Images) 
-            .OrderBy(product => product.Id)
-            .Skip(skip)
-            .Take(take)
-            .ToListAsync();
+        if (filter.MaxPrice.HasValue)
+            query = query.Where(p => p.NewPrice <= filter.MaxPrice.Value);
+
+        return query;
     }
 
-    public override async Task<Product?> GetByIdAsync(int productId, bool includeDeleted = false)
+    protected override IQueryable<Product> ApplyIncludes(IQueryable<Product> query) =>
+        query.Include(p => p.Category).Include(p => p.Images);
+
+    protected override IOrderedQueryable<Product> ApplySorting(IQueryable<Product> query, ProductFilter filter) => filter.Sort switch
     {
-        var query = _context.Products.AsNoTrackingWithIdentityResolution();
-
-        if (includeDeleted && IsSoftDeletableType)
-            query = query.IgnoreQueryFilters();
-
-        return await query
-            .Include(product => product.Category)
-            .Include(product => product.Images)
-            .FirstOrDefaultAsync(p => p.Id == productId);
-    }
-
-    public async Task<int> CountAsync(int? categoryId, bool includeDeleted = false)
-    {
-        var query = _context.Set<Product>().AsQueryable();
-
-        if (includeDeleted)
-            query = query.IgnoreQueryFilters();
-
-        if (categoryId.HasValue)
-            query = query.Where(product => product.CategoryId == categoryId.Value);
-
-        return await query.CountAsync();
-    }
+        ProductSort.Default => query.OrderBy(p => p.Id),
+        ProductSort.PriceAsc => query.OrderBy(p => p.NewPrice).ThenBy(p => p.Id),
+        ProductSort.PriceDesc => query.OrderByDescending(p => p.NewPrice).ThenBy(p => p.Id),
+        ProductSort.NameAsc => query.OrderBy(p => p.Name).ThenBy(p => p.Id),
+        ProductSort.NameDesc => query.OrderByDescending(p => p.Name).ThenBy(p => p.Id),
+        ProductSort.Newest => query.OrderByDescending(p => p.CreatedAt).ThenBy(p => p.Id),
+        _ => throw new ArgumentOutOfRangeException(nameof(filter), filter.Sort, "Unsupported sort order.")
+    };
 }

@@ -1,9 +1,6 @@
 using Store.Core.DTOs.Category;
+using Store.Core.Entities;
 
 namespace Store.Core.Interfaces.Services;
 
-/// <summary>Category use cases, including nested category trees.</summary>
-public interface ICategoryService : ICRUDService<CategoryResponseDto, CategoryRequestDto>
-{
-
-}
+public interface ICategoryService : IBaseService<CategoryResponseDto, CategoryRequestDto, CategoryFilter> { }

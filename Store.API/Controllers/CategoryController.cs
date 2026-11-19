@@ -10,4 +10,6 @@ namespace Store.API.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 public class CategoryController(ICategoryService service, IApiResponseBuilder responseBuilder)
-    : CRUDController<Category, CategoryResponseDto, CategoryRequestDto>(service, responseBuilder);
+    : BaseController<Category, CategoryResponseDto, CategoryRequestDto, CategoryFilter>(service, responseBuilder)
+{
+}

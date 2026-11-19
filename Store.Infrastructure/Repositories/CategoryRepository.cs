@@ -1,63 +1,74 @@
 using Microsoft.EntityFrameworkCore;
+using Store.Core.DTOs.Category;
 using Store.Core.Entities;
 using Store.Core.Interfaces.Repositories;
 using Store.Infrastructure.Data;
 
 namespace Store.Infrastructure.Repositories;
 
-public class CategoryRepository(AppDbContext context) : CRUDRepository<Category>(context), ICategoryRepository
+/// <summary>Persists categories, including hierarchy-aware delete and restore.</summary>
+public class CategoryRepository(AppDbContext context)
+    : BaseRepository<Category, CategoryFilter>(context), ICategoryRepository
 {
-    public override async Task DeleteAsync(int categoryId)
+    protected override IQueryable<Category> ApplyFilter(IQueryable<Category> query, CategoryFilter filter)
     {
-        // Tracked query so SaveChanges persists the changes.
-        var categories = await _context.Categories.ToListAsync();   // filter already hides deleted rows
-
-        var category = categories.FirstOrDefault(c => c.Id == categoryId && !c.IsDeleted) ?? throw new InvalidOperationException($"Catgory with ID {categoryId} not found.");
-
-        var byParent = categories.ToLookup(c => c.ParentCategoryId);
-        var toDelete = GetSubCategories(category, byParent, []);   // all descendants
-        toDelete.Add(category);
-
-        var now = DateTime.UtcNow;
-        foreach (var item in toDelete)
+        if (!string.IsNullOrWhiteSpace(filter.Search))
         {
-            item.SoftDelete();
-            item.UpdatedAt = now;
+            var term = filter.Search.Trim();
+            query = query.Where(c => c.Name.Contains(term));
         }
 
-        await _context.SaveChangesAsync();   // one save, one transaction: all or nothing
+        return query;
+    }
+
+    protected override IOrderedQueryable<Category> ApplySorting(IQueryable<Category> query, CategoryFilter filter) =>
+        filter.Sort switch
+        {
+            CategorySort.Default => query.OrderBy(c => c.Id),
+            CategorySort.NameAsc => query.OrderBy(c => c.Name).ThenBy(c => c.Id),
+            CategorySort.NameDesc => query.OrderByDescending(c => c.Name).ThenBy(c => c.Id),
+            CategorySort.Newest => query.OrderByDescending(c => c.CreatedAt).ThenBy(c => c.Id),
+            _ => throw new ArgumentOutOfRangeException(nameof(filter), filter.Sort, "Unsupported sort order.")
+        };
+
+
+    public override async Task DeleteAsync(int categoryId)
+    {
+        var categories = await Query(includeDeleted: false).ToListAsync();
+
+        var category = categories.FirstOrDefault(c => c.Id == categoryId)
+            ?? throw new InvalidOperationException($"{EntityName} with ID {categoryId} was not found.");
+
+        var byParent = categories.ToLookup(c => c.ParentCategoryId);
+        var toDelete = GetSubCategories(category, byParent, []);
+        toDelete.Add(category);
+
+        foreach (var item in toDelete)
+            item.SoftDelete();
+
+        await _context.SaveChangesAsync();
     }
 
     public override async Task<Category> RestoreAsync(int categoryId)
     {
-        // IgnoreQueryFilters so soft-deleted rows are loaded. Tracked query so SaveChanges persists the changes.
-        var categories = await _context.Categories
-            .IgnoreQueryFilters()
-            .ToListAsync();
+        var categories = await Query(includeDeleted: true).ToListAsync();
 
         var category = categories.FirstOrDefault(c => c.Id == categoryId && c.IsDeleted)
             ?? throw new InvalidOperationException($"Deleted {EntityName} with ID {categoryId} was not found.");
 
-        // Don't bring a subcategory back under a parent that is still deleted.
-        if (category.ParentCategoryId is { } parentId &&
-            categories.Any(c => c.Id == parentId && c.IsDeleted))
+        if (category.ParentCategoryId is { } parentId && categories.Any(c => c.Id == parentId && c.IsDeleted))
             throw new InvalidOperationException($"Restore the parent category (ID {parentId}) first.");
 
         var byParent = categories.ToLookup(c => c.ParentCategoryId);
-
         var toRestore = GetSubCategories(category, byParent, [])
             .Where(c => c.IsDeleted)
             .ToList();
         toRestore.Add(category);
 
-        var now = DateTime.UtcNow;
         foreach (var item in toRestore)
-        {
             item.Restore();
-            item.UpdatedAt = now;
-        }
 
-        await _context.SaveChangesAsync();   // one save, one transaction: all or nothing
+        await _context.SaveChangesAsync();
         return category;
     }
 
@@ -85,5 +96,4 @@ public class CategoryRepository(AppDbContext context) : CRUDRepository<Category>
 
         return result;
     }
-
 }

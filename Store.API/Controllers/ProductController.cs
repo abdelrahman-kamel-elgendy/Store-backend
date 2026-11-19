@@ -12,26 +12,14 @@ namespace Store.API.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 public class ProductController(IProductService service, IApiResponseBuilder responseBuilder)
-    : CRUDController<Product, ProductResponseDto, ProductRequestDto>(service, responseBuilder)
+    : BaseController<Product, ProductResponseDto, ProductRequestDto, ProductFilter>(service, responseBuilder)
 {
-    private readonly IApiResponseBuilder _responseBuilder = responseBuilder;
+    // Products carry IFormFileCollection, so they are bound from multipart/form-data, not JSON.
+    [HttpPost]
+    public override Task<ActionResult<ApiResponse<ProductResponseDto>>> Create([FromForm] ProductRequestDto request) =>
+        base.Create(request);
 
-    /// <summary>Retrieves a paginated list of products.</summary>
-    /// <param name="categoryId">When has value, only products in spacific category are returned.</param>
-    /// <param name="pagination">Page number and page size for pagination.</param>
-    /// <param name="includeDeleted">When true, soft-deleted resources are included in the results.</param>
-    /// <returns>A paginated collection of products in the specific category with pagination metadata.</returns>
-    /// <response code="200">The collection was retrieved successfully (may be empty).</response>
-    [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<ProductResponseDto>>>> Get(
-        [FromQuery] PaginationQuery pagination,
-        [FromQuery] bool includeDeleted = false,
-        [FromQuery] int? categoryId = null)
-    {
-        var result = await service.GetPageAsync(categoryId, pagination.Page, pagination.PageSize, includeDeleted);
-        var metadata = new ApiMetadata(Pagination: PaginationMetadata.Create(result.Page, result.PageSize, result.TotalItems));
-        var message = result.TotalItems == 0 ? $"No {ResourceCollectionName} were found." : $"{ResourceCollectionName} retrieved successfully.";
-        return Ok(_responseBuilder.BuildSuccessResponse(result.Items, message, metadata));
-    }
+    [HttpPut("{id:int}")]
+    public override Task<ActionResult<ApiResponse<ProductResponseDto>>> Update(int id, [FromForm] ProductRequestDto request) =>
+        base.Update(id, request);
 }

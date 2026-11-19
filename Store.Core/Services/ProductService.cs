@@ -1,90 +1,58 @@
 using AutoMapper;
-using Microsoft.AspNetCore.Http;
 using Store.Core.DTOs;
 using Store.Core.DTOs.Product;
 using Store.Core.Entities;
 using Store.Core.Exceptions;
 using Store.Core.Interfaces.Repositories;
 using Store.Core.Interfaces.Services;
+using Store.Core.Services;
 
 namespace Store.Service.Services;
 
 public class ProductService(IProductRepository productRepository, ICategoryRepository categoryRepository, IImageRepository imageRepository, IMapper mapper)
-    : CRUDService<Product, ProductResponseDto, ProductRequestDto>(productRepository, mapper), IProductService
+    : BaseService<Product, ProductResponseDto, ProductRequestDto, ProductFilter>(productRepository, mapper), IProductService
 {
-    private readonly ICategoryRepository _categoryRepository = categoryRepository;
-    private readonly IImageRepository _imageRepository = imageRepository;
-    private readonly IMapper _mapper = mapper;
-
-
-    public override async Task<ProductResponseDto> CreateAsync(ProductRequestDto createProductRequest)
+    public async Task<PagedResult<ProductResponseDto>> GetAllAsync(ProductFilter filter, int page, int pageSize)
     {
-        int categoryId = createProductRequest.CategoryId;
-        string productName = createProductRequest.Name;
-        IFormFileCollection? images = createProductRequest.Images;
+        if (filter.CategoryId.HasValue && !await categoryRepository.ExistsByIdAsync(filter.CategoryId.Value))
+            throw new NotFoundException($"Category with ID {filter.CategoryId} was not found.");
 
-        // category validation
-        if (!await _categoryRepository.ExistsByIdAsync(categoryId))
-            throw new NotFoundException($"Category with ID {categoryId} was not found.");
+        return await base.GetAllPagedAsync(filter, page, pageSize);
+    }
 
-        // product validation
-        if (await productRepository.ExistsByNameAsync(productName))
-            throw new ConflictException($"Product with name {productName} already exists.");
+    public override async Task<ProductResponseDto> CreateAsync(ProductRequestDto request)
+    {
+        if (!await categoryRepository.ExistsByIdAsync(request.CategoryId))
+            throw new NotFoundException($"Category with ID {request.CategoryId} was not found.");
 
-        // product mapping
-        var product = _mapper.Map<Product>(createProductRequest);
-
-        // product creating
+        var product = _mapper.Map<Product>(request);
         await productRepository.AddAsync(product);
 
-        // saving images
-        if (images is not null)
-            await _imageRepository.SaveImagesAsync(images, product.Id, productName);
+        if (request.Images is { Count: > 0 })
+            await imageRepository.SaveImagesAsync(request.Images, product.Id, request.Name);
 
-        // response mapping
         return _mapper.Map<ProductResponseDto>(product);
     }
 
-    public async Task<PagedResult<ProductResponseDto>> GetPageAsync(int? categoryId, int page, int pageSize, bool includeDeleted = false)
+    public override async Task<ProductResponseDto> UpdateAsync(int id, ProductRequestDto request)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, 100);
+        var product = await productRepository.GetByIdAsync(id)
+            ?? throw new NotFoundException($"Product with ID {id} was not found.");
 
-        var skip = (int)Math.Min((long)(page - 1) * pageSize, int.MaxValue);
-        var totalItems = await productRepository.CountAsync(categoryId, includeDeleted);
-        var entities = await productRepository.GetPageAsync(categoryId, skip, pageSize, includeDeleted);
+        if (await categoryRepository.ExistsByIdAsync(request.CategoryId))
+            throw new NotFoundException($"Category with ID {request.CategoryId} was not found.");
 
-        return new PagedResult<ProductResponseDto>(
-            _mapper.Map<IReadOnlyList<ProductResponseDto>>(entities),
-            page,
-            pageSize,
-            totalItems);
-    }
+        var sameName = await productRepository.GetByNameAsync(request.Name);
+        if (sameName is not null && sameName.Id != id)
+            throw new ConflictException($"Product with name {request.Name} already exists.");
 
-    public override async Task<ProductResponseDto> UpdateAsync(int id, ProductRequestDto updateProductRequest)
-    {
-        int categoryId = updateProductRequest.CategoryId;
-        string productName = updateProductRequest.Name;
-        IFormFileCollection? images = updateProductRequest.Images;
+        _mapper.Map(request, product);
 
-        if (!await _categoryRepository.ExistsByIdAsync(categoryId))
-            throw new NotFoundException($"Category with ID {categoryId} was not found.");
-
-        var product = await productRepository.GetByIdAsync(id) ?? throw new NotFoundException($"Product with ID {id} was not found.");
-
-        var existingProductWithName = await productRepository.GetByNameAsync(productName);
-        if (existingProductWithName is not null && existingProductWithName.Id != id)
-            if (!existingProductWithName.IsDeleted)
-                throw new ConflictException($"Product with name '{productName}' already exists.");
-
-        _mapper.Map(updateProductRequest, product);
-
-        await _imageRepository.RemoveImagesAsync(id);
-        if (images is not null)
-            await _imageRepository.SaveImagesAsync(images, product.Id, productName);
-
+        await imageRepository.RemoveImagesAsync(id);
         await productRepository.UpdateAsync(product);
+
+        if (request.Images is { Count: > 0 })
+            await imageRepository.SaveImagesAsync(request.Images, id, request.Name);
 
         return _mapper.Map<ProductResponseDto>(product);
     }
