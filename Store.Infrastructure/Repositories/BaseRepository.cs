@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Store.Core.DTOs;
 using Store.Core.Entities;
+using Store.Core.Interfaces.Entities;
 using Store.Core.Interfaces.Repositories;
 using Store.Infrastructure.Data;
 
@@ -84,7 +85,11 @@ public abstract class BaseRepository<TEntity, TFilter>(AppDbContext context) : I
         var entity = await Query(includeDeleted: false).FirstOrDefaultAsync(e => e.Id == id)
             ?? throw new InvalidOperationException($"{EntityName} with ID {id} was not found or may be deleted.");
 
-        entity.SoftDelete();
+        if (entity is ISoftDeletable softDeletable)
+            softDeletable.SoftDelete();
+        else
+            _context.Set<TEntity>().Remove(entity);
+
         await _context.SaveChangesAsync();
     }
 
@@ -93,7 +98,10 @@ public abstract class BaseRepository<TEntity, TFilter>(AppDbContext context) : I
         var entity = await Query(includeDeleted: true).FirstOrDefaultAsync(e => e.Id == id)
             ?? throw new InvalidOperationException($"{EntityName} with ID {id} was not found.");
 
-        if (!entity.IsDeleted)
+        if (entity is not ISoftDeletable softDeletable)
+            throw new InvalidOperationException($"{EntityName} does not support soft delete / restore.");
+
+        if (!softDeletable.IsDeleted)
             throw new InvalidOperationException($"{EntityName} with ID {id} is already restored.");
 
         entity.Restore();
