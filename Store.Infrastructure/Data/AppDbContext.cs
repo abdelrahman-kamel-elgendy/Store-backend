@@ -20,12 +20,6 @@ public class AppDbContext : DbContext
         return base.SaveChanges();
     }
 
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        ApplyAuditMetadata();
-        return base.SaveChangesAsync(cancellationToken);
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -92,8 +86,7 @@ public class AppDbContext : DbContext
         if (!string.IsNullOrWhiteSpace(identityName))
             return identityName;
 
-        var claim = principal?.Claims.FirstOrDefault(c =>
-            c.Type == ClaimTypes.NameIdentifier || c.Type == ClaimTypes.Name || c.Type == "sub");
+        var claim = principal?.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == ClaimTypes.Name || c.Type == "sub");
 
         return claim?.Value ?? "system";
     }

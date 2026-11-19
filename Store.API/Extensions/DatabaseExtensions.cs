@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Store.API.Configuration;
+using Store.Core.Configuration;
 using Store.Infrastructure.Data;
 
 namespace Store.API.Extensions;

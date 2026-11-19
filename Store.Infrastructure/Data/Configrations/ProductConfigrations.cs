@@ -2,9 +2,9 @@
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Store.Core.Entities;
 
-namespace Store.Infrastructure.Data.Config;
+namespace Store.Infrastructure.Data.Configrations;
 
-public class ProductConfigs : IEntityTypeConfiguration<Product>
+public class ProductConfigrations : IEntityTypeConfiguration<Product>
 {
     public void Configure(EntityTypeBuilder<Product> builder)
     {

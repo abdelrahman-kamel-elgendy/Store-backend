@@ -2,9 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Store.Core.Entities;
 
-namespace Store.Infrastructure.Data.Config;
+namespace Store.Infrastructure.Data.Configrations;
 
-public class PhotoConfigs : IEntityTypeConfiguration<Image>
+public class ImageConfigrations : IEntityTypeConfiguration<Image>
 {
     public void Configure(EntityTypeBuilder<Image> builder)
     {

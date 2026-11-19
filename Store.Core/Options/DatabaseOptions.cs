@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Store.API.Configuration;
+namespace Store.Core.Configuration;
 
 public sealed class DatabaseOptions
 {

@@ -1,15 +1,12 @@
 using System.Diagnostics;
-using Store.API.Services;
 using Microsoft.AspNetCore.Http;
+using Store.API.Services;
 
 namespace Store.API.MiddleWares.Errors;
 
-public sealed class ExceptionHandlingMiddleware(
-    RequestDelegate next,
-    ILogger<ExceptionHandlingMiddleware> logger,
-    IApiResponseBuilder responseBuilder)
+public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
 {
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, IApiResponseBuilder responseBuilder)
     {
         try
         {
@@ -26,10 +23,7 @@ public sealed class ExceptionHandlingMiddleware(
             var traceId = GetTraceId(context);
 
             if (context.Response.HasStarted)
-            {
                 logger.LogError(exception, "Exception occurred after response started. TraceId: {TraceId}", traceId);
-                throw;
-            }
 
             var result = responseBuilder.BuildExceptionResponse(exception, traceId);
 

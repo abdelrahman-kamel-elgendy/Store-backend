@@ -2,9 +2,9 @@
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Store.Core.Entities;
 
-namespace Store.Infrastructure.Data.Config;
+namespace Store.Infrastructure.Data.Configrations;
 
-public class CategoryConfigs : IEntityTypeConfiguration<Category>
+public class CategoryConfigrations : IEntityTypeConfiguration<Category>
 {
     public void Configure(EntityTypeBuilder<Category> builder)
     {
