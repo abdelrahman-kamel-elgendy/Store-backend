@@ -26,7 +26,7 @@ public class CategoryService(ICategoryRepository categoryRepository, IMapper map
         return await base.CreateAsync(request);
     }
 
-    public override async Task<PagedResult<CategoryResponseDto>> GetAllAsync(
+    public override async Task<PagedResult<CategoryResponseDto>> GetPageAsync(
         int page,
         int pageSize,
         bool includeDeleted = false)

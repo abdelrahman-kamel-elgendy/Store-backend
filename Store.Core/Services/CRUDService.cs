@@ -24,7 +24,7 @@ public class CRUDService<TEntity, TResponse, TRequest>(ICRUDRepository<TEntity> 
         return mapper.Map<TResponse>(entity);
     }
 
-    public virtual async Task<PagedResult<TResponse>> GetAllAsync(int page, int pageSize, bool includeDeleted = false)
+    public virtual async Task<PagedResult<TResponse>> GetPageAsync(int page, int pageSize, bool includeDeleted = false)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);

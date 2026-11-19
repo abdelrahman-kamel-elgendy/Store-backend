@@ -16,35 +16,22 @@ public class ProductController(IProductService service, IApiResponseBuilder resp
 {
     private readonly IApiResponseBuilder _responseBuilder = responseBuilder;
 
-    /// <summary>Retrieves a paginated list of products in a specific category selected by id.</summary>
-    /// <param name="categoryId">Category id.</param>
+    /// <summary>Retrieves a paginated list of products.</summary>
+    /// <param name="categoryId">When has value, only products in spacific category are returned.</param>
     /// <param name="pagination">Page number and page size for pagination.</param>
     /// <param name="includeDeleted">When true, soft-deleted resources are included in the results.</param>
     /// <returns>A paginated collection of products in the specific category with pagination metadata.</returns>
     /// <response code="200">The collection was retrieved successfully (may be empty).</response>
-    [HttpGet("Category-id/{categoryId:int}")]
+    [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public virtual async Task<ActionResult<ApiResponse<IReadOnlyList<ProductResponseDto>>>> GetByCategoryId(
-        int categoryId, [FromQuery] PaginationQuery pagination, [FromQuery] bool includeDeleted = false)
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<ProductResponseDto>>>> Get(
+        [FromQuery] PaginationQuery pagination,
+        [FromQuery] bool includeDeleted = false,
+        [FromQuery] int? categoryId = null)
     {
-        var result = await service.GetByCategoryIdAsync(categoryId, pagination.Page, pagination.PageSize, includeDeleted);
+        var result = await service.GetPageAsync(categoryId, pagination.Page, pagination.PageSize, includeDeleted);
         var metadata = new ApiMetadata(Pagination: PaginationMetadata.Create(result.Page, result.PageSize, result.TotalItems));
-        return Ok(_responseBuilder.BuildSuccessResponse(result.Items, $"Products retrieved successfully.", metadata));
-    }
-
-    /// <summary>Retrieves a paginated list of products in a specific category selected by name.</summary>
-    /// <param name="categoryName">Category name.</param>
-    /// <param name="pagination">Page number and page size for pagination.</param>
-    /// <param name="includeDeleted">When true, soft-deleted resources are included in the results.</param>
-    /// <returns>A paginated collection of products in the specific category with pagination metadata.</returns>
-    /// <response code="200">The collection was retrieved successfully (may be empty).</response>
-    [HttpGet("Category-name/{categoryName}")] // <-- FIXED: Removed :string
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public virtual async Task<ActionResult<ApiResponse<IReadOnlyList<ProductResponseDto>>>> GetByCategoryName(
-        string categoryName, [FromQuery] PaginationQuery pagination, [FromQuery] bool includeDeleted = false)
-    {
-        var result = await service.GetByCategoryNameAsync(categoryName, pagination.Page, pagination.PageSize, includeDeleted);
-        var metadata = new ApiMetadata(Pagination: PaginationMetadata.Create(result.Page, result.PageSize, result.TotalItems));
-        return Ok(_responseBuilder.BuildSuccessResponse(result.Items, $"Products retrieved successfully.", metadata));
+        var message = result.TotalItems == 0 ? $"No {ResourceCollectionName} were found." : $"{ResourceCollectionName} retrieved successfully.";
+        return Ok(_responseBuilder.BuildSuccessResponse(result.Items, message, metadata));
     }
 }

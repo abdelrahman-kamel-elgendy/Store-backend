@@ -45,32 +45,15 @@ public class ProductService(IProductRepository productRepository, ICategoryRepos
         return _mapper.Map<ProductResponseDto>(product);
     }
 
-    public async Task<PagedResult<ProductResponseDto>> GetByCategoryIdAsync(int categoryId, int page, int pageSize, bool includeDeleted = false)
+    public async Task<PagedResult<ProductResponseDto>> GetPageAsync(int? categoryId, int page, int pageSize, bool includeDeleted = false)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, 100);
 
         var skip = (int)Math.Min((long)(page - 1) * pageSize, int.MaxValue);
-        var totalItems = await productRepository.CountByCategoryAsync(categoryId, includeDeleted);
-        var entities = await productRepository.GetByCategoryIdAsync(categoryId, skip, pageSize, includeDeleted);
-
-        return new PagedResult<ProductResponseDto>(
-            _mapper.Map<IReadOnlyList<ProductResponseDto>>(entities),
-            page,
-            pageSize,
-            totalItems);
-    }
-
-    public async Task<PagedResult<ProductResponseDto>> GetByCategoryNameAsync(string categoryName, int page, int pageSize, bool includeDeleted = false)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
-        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, 100);
-
-        var skip = (int)Math.Min((long)(page - 1) * pageSize, int.MaxValue);
-        var totalItems = await productRepository.CountByCategoryAsync(categoryName, includeDeleted);
-        var entities = await productRepository.GetByCategoryNameAsync(categoryName, skip, pageSize, includeDeleted);
+        var totalItems = await productRepository.CountAsync(categoryId, includeDeleted);
+        var entities = await productRepository.GetPageAsync(categoryId, skip, pageSize, includeDeleted);
 
         return new PagedResult<ProductResponseDto>(
             _mapper.Map<IReadOnlyList<ProductResponseDto>>(entities),

@@ -8,6 +8,7 @@ namespace Store.Core.DTOs.Product;
 /// <param name="Description">Description.</param>
 /// <param name="NewPrice">Current price.</param>
 /// <param name="OldPrice">Previous price.</param>
+/// <param name="CategoryId">Id of the related category, or an empty string when that category is not visible.</param>
 /// <param name="CategoryName">Name of the related category, or an empty string when that category is not visible.</param>
 /// <param name="ImageUrls">Images saved for the product.</param>
 /// <param name="IsDeleted">True when the product is soft-deleted.</param>
@@ -20,6 +21,7 @@ public record ProductResponseDto(
     string Description,
     decimal NewPrice,
     decimal OldPrice,
+    int CategoryId,
     string CategoryName,
     IReadOnlyList<ImageResponseDto> ImageUrls,
     bool IsDeleted,

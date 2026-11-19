@@ -16,7 +16,7 @@ public interface ICRUDService<TDto, in TRequest>
     /// <param name="page">Page number.</param>
     /// <param name="pageSize">number of entities in one page.</param>
     /// <param name="includeDeleted">When true, a soft-deleted resource can be returned.</param>
-    Task<PagedResult<TDto>> GetAllAsync(int page, int pageSize, bool includeDeleted = false);
+    Task<PagedResult<TDto>> GetPageAsync(int page, int pageSize, bool includeDeleted = false);
 
     /// <summary>Returns one resource.</summary>
     /// <param name="id">Resource id.</param>
