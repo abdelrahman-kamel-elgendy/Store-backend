@@ -35,7 +35,19 @@ public abstract class CRUDController<TEntity, TResponse, TRequest>(ICRUDService<
         return CreatedAtAction(nameof(GetById), new { id = response.Id }, successResponse);
     }
 
-    
+    /// <summary>Retrieves a paginated list of resources.</summary>
+    /// <param name="pagination">Page number and page size for pagination.</param>
+    /// <param name="includeDeleted">When true, soft-deleted resources are included in the results.</param>
+    /// <returns>A paginated collection of resources with pagination metadata.</returns>
+    /// <response code="200">The collection was retrieved successfully (may be empty).</response>
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public virtual async Task<ActionResult<ApiResponse<IReadOnlyList<TResponse>>>> Get([FromQuery] PaginationQuery pagination, [FromQuery] bool includeDeleted = false)
+    {
+        var result = await service.GetPageAsync(pagination.Page, pagination.PageSize, includeDeleted);
+        var metadata = new ApiMetadata(Pagination: PaginationMetadata.Create(result.Page, result.PageSize, result.TotalItems));
+        var message = result.TotalItems == 0 ? $"No {ResourceCollectionName} were found." : $"{ResourceCollectionName} retrieved successfully.";
+        return Ok(responseBuilder.BuildSuccessResponse(result.Items, message, metadata));
+    }
 
     /// <summary>Retrieves a single resource by its identifier.</summary>
     /// <param name="id">The unique identifier of the resource.</param>
