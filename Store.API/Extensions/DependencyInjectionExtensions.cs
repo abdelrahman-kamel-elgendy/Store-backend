@@ -61,4 +61,33 @@ public static class DependencyInjectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddCorsConfiguration(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<CorsSettings>()
+            .Bind(configuration.GetSection(CorsSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        var corsSettings = configuration.GetSection(CorsSettings.SectionName).Get<CorsSettings>() ?? new CorsSettings();
+
+        services.AddCors(options =>
+        {
+            options.AddPolicy("CORSPolicy", builder =>
+            {
+                if (corsSettings.AllowedOrigins.Length > 0)
+                    builder.WithOrigins(corsSettings.AllowedOrigins);
+
+                if (corsSettings.AllowAnyHeader)
+                    builder.AllowAnyHeader();
+
+                if (corsSettings.AllowAnyMethod)
+                    builder.AllowAnyMethod();
+
+                builder.AllowCredentials();
+            });
+        });
+
+        return services;
+    }
 }

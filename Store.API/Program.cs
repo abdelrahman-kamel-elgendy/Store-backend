@@ -23,7 +23,8 @@ builder.Services
     .AddMapping()
     .AddRepositories()
     .AddApplicationServices()
-    .AddImageStorage(builder.Configuration);
+    .AddImageStorage(builder.Configuration)
+    .AddCorsConfiguration(builder.Configuration);
 
 var app = builder.Build();
 
@@ -34,6 +35,7 @@ if (await app.RunSeedingIfRequestedAsync(args))
 // configure Pipeline
 app.UseSecurityHeaders();
 app.UseApiErrorHandling();
+app.UseCors("CORSPolicy");
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
