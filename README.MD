@@ -192,7 +192,7 @@ Install the EF CLI if missing: `dotnet tool install --global dotnet-ef`.
  
 ```bash
 # 1. Clone and open
-git clone https://github.com/abdelrahman-kamel-elgendy/Store-backend
+git clone <repository-url>
 cd <repository-folder>
  
 # 2. Verify tooling
